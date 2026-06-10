@@ -6,6 +6,7 @@ import './styles.css'
 const NAV = [
   ['inbox', 'Inbox'],
   ['today', 'Today'],
+  ['schedule', 'Schedule'],
   ['waiting', 'Waiting'],
   ['projects', 'Projects'],
   ['reference', 'Reference'],
@@ -39,6 +40,11 @@ function toScheduledAt(date, time) {
 function isTodayOrEarlier(value) {
   if (!value) return false
   return value.slice(0, 10) <= todayISO()
+}
+
+function formatDateTime(value) {
+  if (!value) return ''
+  return value.replace('T', ' ').slice(0, 16)
 }
 
 function App() {
@@ -150,9 +156,9 @@ function GTDApp({ session, onSignOut }) {
     setNotice('')
 
     const [itemsRes, projectsRes, referencesRes] = await Promise.all([
-      supabase.from('items').select('*').order('created_at', { ascending: false }),
-      supabase.from('projects').select('*').order('created_at', { ascending: false }),
-      supabase.from('references').select('*').order('created_at', { ascending: false }),
+      supabase.from('items').select('*').order('created_at', { ascending: true }),
+      supabase.from('projects').select('*').order('created_at', { ascending: true }),
+      supabase.from('references').select('*').order('created_at', { ascending: true }),
     ])
 
     const error = itemsRes.error || projectsRes.error || referencesRes.error
@@ -248,20 +254,25 @@ function GTDApp({ session, onSignOut }) {
 
   const inboxItems = items.filter((item) => item.status === 'inbox')
 
+  // Due date is a deadline, not a scheduled time.
+  // Today / Do shows all active next actions even if their due date is tomorrow or later.
+  // Scheduled items appear in Today / Do only when their scheduled date is today or earlier.
   const todayItems = items.filter((item) => {
     if (item.status !== 'active') return false
-    if (!['action', 'scheduled'].includes(item.case_type)) return false
+
+    if (item.case_type === 'action') return true
 
     if (item.case_type === 'scheduled') {
       return isTodayOrEarlier(item.scheduled_at)
     }
 
-    if (item.due_date) {
-      return item.due_date <= todayISO()
-    }
-
-    return true
+    return false
   })
+
+  const scheduledItems = items
+    .filter((item) => item.status === 'active' && item.case_type === 'scheduled')
+    .slice()
+    .sort((a, b) => (a.scheduled_at || '').localeCompare(b.scheduled_at || ''))
 
   const waitingItems = items.filter((item) => {
     return item.status === 'active' && item.case_type === 'delegated'
@@ -308,7 +319,7 @@ function GTDApp({ session, onSignOut }) {
 
         {!loading && screen === 'inbox' && (
           <section>
-            <ScreenTitle title="Inbox" subtitle={`${inboxItems.length} unprocessed item(s)`} />
+            <ScreenTitle title="Inbox" subtitle={`${inboxItems.length} unprocessed item(s). Newest items are at the bottom.`} />
             {inboxItems.length === 0 && <Empty text="Nothing in Inbox. Tap + to capture something." />}
 
             <div className="list">
@@ -326,20 +337,40 @@ function GTDApp({ session, onSignOut }) {
 
         {!loading && screen === 'today' && (
           <section>
-            <ScreenTitle title="Today / Do" subtitle="Actions and scheduled items to act on now" />
-            {todayItems.length === 0 && <Empty text="No actions for today." />}
+            <ScreenTitle title="Today / Do" subtitle="All active next actions, plus scheduled items that are due to appear today or earlier." />
+            {todayItems.length === 0 && <Empty text="No actions to show." />}
 
             <div className="list">
               {todayItems.map((item) => (
                 <Card key={item.id}>
                   <h3>{item.title}</h3>
                   {item.notes && <p>{item.notes}</p>}
+                  <Meta label="Type" value={item.case_type === 'scheduled' ? 'Scheduled' : 'Action'} />
                   <Meta label="Area" value={item.area_type} />
                   <Meta label="Project" value={projectById[item.project_id]?.name} />
                   <Meta label="Priority" value={item.priority} />
                   <Meta label="Context" value={item.context} />
                   <Meta label="Due date" value={item.due_date} />
-                  <Meta label="Scheduled" value={item.scheduled_at?.replace('T', ' ').slice(0, 16)} />
+                  <Meta label="Scheduled for" value={formatDateTime(item.scheduled_at)} />
+                  <button onClick={() => completeItem(item)}>Mark done</button>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {!loading && screen === 'schedule' && (
+          <section>
+            <ScreenTitle title="Schedule" subtitle="All active scheduled items. This is separate from due dates." />
+            {scheduledItems.length === 0 && <Empty text="No scheduled items." />}
+
+            <div className="list">
+              {scheduledItems.map((item) => (
+                <Card key={item.id}>
+                  <h3>{item.title}</h3>
+                  {item.notes && <p>{item.notes}</p>}
+                  <Meta label="Scheduled for" value={formatDateTime(item.scheduled_at)} />
+                  <Meta label="Area" value={item.area_type} />
                   <button onClick={() => completeItem(item)}>Mark done</button>
                 </Card>
               ))}
@@ -530,7 +561,16 @@ function CaptureModal({ onClose, onSubmit }) {
 function ProcessModal({ item, userId, projects, onClose, onDone }) {
   const [caseType, setCaseType] = useState('')
   const [areaType, setAreaType] = useState('')
-  const [form, setForm] = useState({})
+  const [form, setForm] = useState({
+    reference_title: item.title,
+    content: item.notes || '',
+    notes: item.notes || '',
+    next_action: item.title,
+    action_to_do: item.title,
+    project_name: item.title,
+    desired_outcome: '',
+    waiting_for: item.title,
+  })
   const [saving, setSaving] = useState(false)
 
   function update(key, value) {
@@ -544,7 +584,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
       return 'Choose Work or Personal.'
     }
 
-    if (caseType === 'action' && !form.next_action) {
+    if (caseType === 'action' && !form.next_action.trim()) {
       return 'Next action is required.'
     }
 
@@ -556,7 +596,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
       return 'Scheduled date is required.'
     }
 
-    if (caseType === 'project' && (!form.project_name || !form.desired_outcome || !form.next_action)) {
+    if (caseType === 'project' && (!form.project_name.trim() || !form.desired_outcome.trim() || !form.next_action.trim())) {
       return 'Project name, desired outcome, and next action are required.'
     }
 
@@ -640,6 +680,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           priority: form.priority || null,
           context: form.context || null,
           due_date: form.due_date || null,
+          scheduled_at: null,
           processed_at: processedAt,
         })
         .eq('id', item.id)
@@ -675,6 +716,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           status: 'active',
           case_type: 'scheduled',
           area_type: areaType || null,
+          due_date: null,
           scheduled_at: toScheduledAt(form.scheduled_date, form.scheduled_time),
           processed_at: processedAt,
         })
@@ -711,6 +753,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           area_type: areaType,
           project_id: project.id,
           due_date: form.due_date || null,
+          scheduled_at: null,
           processed_at: processedAt,
         })
         .eq('id', item.id)
@@ -760,8 +803,8 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
 
       {caseType === 'reference' && (
         <>
-          <input placeholder="Reference title" onChange={(event) => update('reference_title', event.target.value)} />
-          <textarea placeholder="Reference content / notes" defaultValue={item.notes || ''} onChange={(event) => update('content', event.target.value)} />
+          <input placeholder="Reference title" value={form.reference_title} onChange={(event) => update('reference_title', event.target.value)} />
+          <textarea placeholder="Reference content / notes" value={form.content} onChange={(event) => update('content', event.target.value)} />
           <input placeholder="Area or category" onChange={(event) => update('category', event.target.value)} />
           <input placeholder="Tags, comma separated" onChange={(event) => update('tags', event.target.value)} />
         </>
@@ -771,18 +814,18 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
         <>
           <label>Review date</label>
           <input type="date" onChange={(event) => update('review_date', event.target.value)} />
-          <textarea placeholder="Notes" defaultValue={item.notes || ''} onChange={(event) => update('notes', event.target.value)} />
+          <textarea placeholder="Notes" value={form.notes} onChange={(event) => update('notes', event.target.value)} />
         </>
       )}
 
       {caseType === 'action' && (
         <>
-          <input placeholder="Next action *" onChange={(event) => update('next_action', event.target.value)} />
+          <input placeholder="Next action *" value={form.next_action} onChange={(event) => update('next_action', event.target.value)} />
 
           {projects.length > 0 && (
             <>
               <label>Linked project, optional</label>
-              <select onChange={(event) => update('project_id', event.target.value)}>
+              <select value={form.project_id || ''} onChange={(event) => update('project_id', event.target.value)}>
                 <option value="">No project</option>
                 {projects.map((project) => (
                   <option key={project.id} value={project.id}>
@@ -795,16 +838,16 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
 
           <input placeholder="Priority, optional" onChange={(event) => update('priority', event.target.value)} />
           <input placeholder="Context, optional" onChange={(event) => update('context', event.target.value)} />
-          <label>Due date</label>
+          <label>Due date / deadline, optional</label>
           <input type="date" onChange={(event) => update('due_date', event.target.value)} />
-          <textarea placeholder="Notes" defaultValue={item.notes || ''} onChange={(event) => update('notes', event.target.value)} />
+          <textarea placeholder="Notes" value={form.notes} onChange={(event) => update('notes', event.target.value)} />
         </>
       )}
 
       {caseType === 'delegated' && (
         <>
           <input placeholder="Person responsible *" onChange={(event) => update('person_responsible', event.target.value)} />
-          <input placeholder="Waiting-for description *" onChange={(event) => update('waiting_for', event.target.value)} />
+          <input placeholder="Waiting-for description *" value={form.waiting_for} onChange={(event) => update('waiting_for', event.target.value)} />
           <label>Follow-up date</label>
           <input type="date" onChange={(event) => update('follow_up_date', event.target.value)} />
           <textarea placeholder="Communication notes" onChange={(event) => update('communication_notes', event.target.value)} />
@@ -817,19 +860,19 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           <input type="date" onChange={(event) => update('scheduled_date', event.target.value)} />
           <label>Scheduled time</label>
           <input type="time" onChange={(event) => update('scheduled_time', event.target.value)} />
-          <input placeholder="Action to do at that time" onChange={(event) => update('action_to_do', event.target.value)} />
-          <textarea placeholder="Notes" defaultValue={item.notes || ''} onChange={(event) => update('notes', event.target.value)} />
+          <input placeholder="Action to do at that time" value={form.action_to_do} onChange={(event) => update('action_to_do', event.target.value)} />
+          <textarea placeholder="Notes" value={form.notes} onChange={(event) => update('notes', event.target.value)} />
         </>
       )}
 
       {caseType === 'project' && (
         <>
-          <input placeholder="Project name *" onChange={(event) => update('project_name', event.target.value)} />
-          <textarea placeholder="Desired outcome *" onChange={(event) => update('desired_outcome', event.target.value)} />
-          <input placeholder="First next action *" onChange={(event) => update('next_action', event.target.value)} />
-          <label>Due date</label>
+          <input placeholder="Project name *" value={form.project_name} onChange={(event) => update('project_name', event.target.value)} />
+          <textarea placeholder="Desired outcome *" value={form.desired_outcome} onChange={(event) => update('desired_outcome', event.target.value)} />
+          <input placeholder="First next action *" value={form.next_action} onChange={(event) => update('next_action', event.target.value)} />
+          <label>Project due date / deadline, optional</label>
           <input type="date" onChange={(event) => update('due_date', event.target.value)} />
-          <textarea placeholder="Notes for first action" defaultValue={item.notes || ''} onChange={(event) => update('notes', event.target.value)} />
+          <textarea placeholder="Notes for first action" value={form.notes} onChange={(event) => update('notes', event.target.value)} />
         </>
       )}
 
@@ -878,7 +921,7 @@ function ProjectActionModal({ project, onClose, onSubmit }) {
       <textarea placeholder="Notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
       <input placeholder="Priority" value={priority} onChange={(event) => setPriority(event.target.value)} />
       <input placeholder="Context" value={context} onChange={(event) => setContext(event.target.value)} />
-      <label>Due date</label>
+      <label>Due date / deadline</label>
       <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
       <button
         disabled={!title.trim()}
