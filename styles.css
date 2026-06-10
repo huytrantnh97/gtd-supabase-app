@@ -48,6 +48,7 @@ button.tiny {
   padding: 7px 10px;
   border-radius: 10px;
   font-size: 12px;
+  margin: 0;
 }
 
 button.icon {
@@ -165,6 +166,48 @@ label {
   color: #555;
 }
 
+.header-menu {
+  position: relative;
+}
+
+.menu-button {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 22px;
+}
+
+.menu-popover {
+  position: absolute;
+  top: 54px;
+  right: 0;
+  width: 180px;
+  padding: 8px;
+  background: white;
+  border: 1px solid #ded7cc;
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+  z-index: 30;
+}
+
+.menu-item {
+  width: 100%;
+  background: transparent;
+  color: #171717;
+  text-align: left;
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.menu-item:hover {
+  background: #f4efe7;
+}
+
+.menu-item.danger {
+  color: #a33;
+}
+
 .tabs {
   display: flex;
   gap: 8px;
@@ -252,6 +295,20 @@ label {
   margin-top: 6px;
 }
 
+.link-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #f4efe7;
+  color: #171717;
+  font-weight: 800;
+  text-decoration: none;
+  border: 1px solid #ded7cc;
+}
+
 .empty {
   color: #666;
   text-align: center;
@@ -333,6 +390,14 @@ label {
   margin-top: 12px;
 }
 
+.button-row.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.button-row button {
+  margin-top: 0;
+}
+
 .mini-action {
   display: flex;
   justify-content: space-between;
@@ -359,6 +424,10 @@ label {
   }
 
   .button-row {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .button-row.two {
+    grid-template-columns: 1fr 1fr;
   }
 }
