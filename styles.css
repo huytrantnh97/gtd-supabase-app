@@ -166,16 +166,27 @@ label {
   color: #555;
 }
 
-.header-menu {
-  position: relative;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
+.refresh-button,
 .menu-button {
   width: 46px;
   height: 46px;
   padding: 0;
   border-radius: 50%;
   font-size: 22px;
+}
+
+.refresh-button {
+  font-size: 26px;
+}
+
+.header-menu {
+  position: relative;
 }
 
 .menu-popover {
@@ -227,6 +238,30 @@ label {
 }
 
 .tabs button.active {
+  background: #171717;
+  color: white;
+}
+
+.area-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 6px;
+  border: 1px solid #ded7cc;
+  border-radius: 999px;
+  background: white;
+}
+
+.area-switcher button {
+  padding: 9px 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: #171717;
+  font-size: 14px;
+}
+
+.area-switcher button.active {
   background: #171717;
   color: white;
 }
