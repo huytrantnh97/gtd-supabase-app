@@ -63,6 +63,11 @@ function normalizeUrl(url) {
   return `https://${clean}`
 }
 
+function matchesArea(record, areaFilter) {
+  if (areaFilter === 'All') return true
+  return record.area_type === areaFilter
+}
+
 function App() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
@@ -156,7 +161,12 @@ function GTDApp({ session, onSignOut }) {
 
   const [screen, setScreen] = useState('inbox')
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [notice, setNotice] = useState('')
+
+  const [todayAreaFilter, setTodayAreaFilter] = useState('All')
+  const [waitingAreaFilter, setWaitingAreaFilter] = useState('All')
+  const [projectsAreaFilter, setProjectsAreaFilter] = useState('All')
 
   const [items, setItems] = useState([])
   const [projects, setProjects] = useState([])
@@ -174,8 +184,9 @@ function GTDApp({ session, onSignOut }) {
   const [editProject, setEditProject] = useState(null)
   const [editReference, setEditReference] = useState(null)
 
-  async function loadAll() {
-    setLoading(true)
+  async function loadAll({ quiet = false } = {}) {
+    if (!quiet) setLoading(true)
+    setRefreshing(true)
     setNotice('')
 
     const [itemsRes, projectsRes, referencesRes] = await Promise.all([
@@ -196,6 +207,7 @@ function GTDApp({ session, onSignOut }) {
     }
 
     setLoading(false)
+    setRefreshing(false)
   }
 
   useEffect(() => {
@@ -220,7 +232,7 @@ function GTDApp({ session, onSignOut }) {
     }
 
     setCaptureOpen(false)
-    await loadAll()
+    await loadAll({ quiet: true })
   }
 
   async function completeItem(item) {
@@ -233,7 +245,7 @@ function GTDApp({ session, onSignOut }) {
       .eq('id', item.id)
 
     if (error) alert(error.message)
-    await loadAll()
+    await loadAll({ quiet: true })
   }
 
   async function completeProject(project) {
@@ -246,7 +258,7 @@ function GTDApp({ session, onSignOut }) {
       .eq('id', project.id)
 
     if (error) alert(error.message)
-    await loadAll()
+    await loadAll({ quiet: true })
   }
 
   async function addProjectAction(project, data) {
@@ -270,7 +282,7 @@ function GTDApp({ session, onSignOut }) {
     }
 
     setNewProjectActionOpen(null)
-    await loadAll()
+    await loadAll({ quiet: true })
   }
 
   async function updateItem(id, data) {
@@ -301,7 +313,7 @@ function GTDApp({ session, onSignOut }) {
     }
 
     setEditItem(null)
-    await loadAll()
+    await loadAll({ quiet: true })
   }
 
   async function updateProject(id, data) {
@@ -323,7 +335,7 @@ function GTDApp({ session, onSignOut }) {
     }
 
     setEditProject(null)
-    await loadAll()
+    await loadAll({ quiet: true })
   }
 
   async function updateReference(id, data) {
@@ -344,7 +356,7 @@ function GTDApp({ session, onSignOut }) {
     }
 
     setEditReference(null)
-    await loadAll()
+    await loadAll({ quiet: true })
   }
 
   const projectById = useMemo(() => {
@@ -355,6 +367,7 @@ function GTDApp({ session, onSignOut }) {
 
   const todayItems = items.filter((item) => {
     if (item.status !== 'active') return false
+    if (!matchesArea(item, todayAreaFilter)) return false
     if (item.case_type === 'action') return true
     if (item.case_type === 'scheduled') return isTodayOrEarlier(item.scheduled_at)
     return false
@@ -370,10 +383,16 @@ function GTDApp({ session, onSignOut }) {
     })
 
   const waitingItems = items.filter((item) => {
-    return item.status === 'active' && item.case_type === 'delegated'
+    return item.status === 'active'
+      && item.case_type === 'delegated'
+      && matchesArea(item, waitingAreaFilter)
   })
 
-  const activeProjects = projects.filter((project) => project.status === 'active')
+  const activeProjects = projects.filter((project) => {
+    return project.status === 'active' && matchesArea(project, projectsAreaFilter)
+  })
+
+  const allActiveProjects = projects.filter((project) => project.status === 'active')
 
   const somedayItems = items.filter((item) => {
     return item.status === 'processed' && item.case_type === 'someday'
@@ -393,31 +412,44 @@ function GTDApp({ session, onSignOut }) {
           <p>{user.email}</p>
         </div>
 
-        <div className="header-menu">
+        <div className="header-actions">
           <button
-            className="menu-button"
-            onClick={() => setMenuOpen((current) => !current)}
-            aria-label="Open menu"
+            className="refresh-button"
+            onClick={() => loadAll({ quiet: true })}
+            disabled={refreshing}
+            aria-label="Refresh data"
+            title="Refresh data"
           >
-            ⚙
+            {refreshing ? '…' : '↻'}
           </button>
 
-          {menuOpen && (
-            <div className="menu-popover">
-              <button
-                className="menu-item"
-                onClick={() => {
-                  setSettingsOpen(true)
-                  setMenuOpen(false)
-                }}
-              >
-                Settings
-              </button>
-              <button className="menu-item danger" onClick={onSignOut}>
-                Sign out
-              </button>
-            </div>
-          )}
+          <div className="header-menu">
+            <button
+              className="menu-button"
+              onClick={() => setMenuOpen((current) => !current)}
+              aria-label="Open menu"
+              title="Settings"
+            >
+              ⚙
+            </button>
+
+            {menuOpen && (
+              <div className="menu-popover">
+                <button
+                  className="menu-item"
+                  onClick={() => {
+                    setSettingsOpen(true)
+                    setMenuOpen(false)
+                  }}
+                >
+                  Settings
+                </button>
+                <button className="menu-item danger" onClick={onSignOut}>
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -466,7 +498,8 @@ function GTDApp({ session, onSignOut }) {
               title="Today / Do"
               subtitle="All active next actions, plus scheduled items that are due to appear today or earlier."
             />
-            {todayItems.length === 0 && <Empty text="No actions to show." />}
+            <AreaSwitcher value={todayAreaFilter} onChange={setTodayAreaFilter} />
+            {todayItems.length === 0 && <Empty text="No actions to show for this area." />}
 
             <div className="list">
               {todayItems.map((item) => (
@@ -520,7 +553,8 @@ function GTDApp({ session, onSignOut }) {
         {!loading && screen === 'waiting' && (
           <section>
             <ScreenTitle title="Waiting / Delegated" subtitle="Check, communicate, and follow up" />
-            {waitingItems.length === 0 && <Empty text="No delegated items." />}
+            <AreaSwitcher value={waitingAreaFilter} onChange={setWaitingAreaFilter} />
+            {waitingItems.length === 0 && <Empty text="No delegated items for this area." />}
 
             <div className="list">
               {waitingItems.map((item) => (
@@ -544,7 +578,8 @@ function GTDApp({ session, onSignOut }) {
         {!loading && screen === 'projects' && (
           <section>
             <ScreenTitle title="Projects" subtitle="Multi-step outcomes. Next actions are items." />
-            {activeProjects.length === 0 && <Empty text="No active projects." />}
+            <AreaSwitcher value={projectsAreaFilter} onChange={setProjectsAreaFilter} />
+            {activeProjects.length === 0 && <Empty text="No active projects for this area." />}
 
             <div className="list">
               {activeProjects.map((project) => {
@@ -632,11 +667,11 @@ function GTDApp({ session, onSignOut }) {
         <ProcessModal
           item={processingItem}
           userId={user.id}
-          projects={activeProjects}
+          projects={allActiveProjects}
           onClose={() => setProcessingItem(null)}
           onDone={async () => {
             setProcessingItem(null)
-            await loadAll()
+            await loadAll({ quiet: true })
           }}
         />
       )}
@@ -664,13 +699,15 @@ function GTDApp({ session, onSignOut }) {
           email={user.email}
           onClose={() => setSettingsOpen(false)}
           onSignOut={onSignOut}
+          onRefresh={() => loadAll({ quiet: true })}
+          refreshing={refreshing}
         />
       )}
 
       {editItem && (
         <EditItemModal
           item={editItem}
-          projects={activeProjects}
+          projects={allActiveProjects}
           onClose={() => setEditItem(null)}
           onSubmit={(data) => updateItem(editItem.id, data)}
         />
@@ -1354,13 +1391,34 @@ function EditReferenceModal({ reference, onClose, onSubmit }) {
   )
 }
 
-function SettingsModal({ email, onClose, onSignOut }) {
+function AreaSwitcher({ value, onChange }) {
+  return (
+    <div className="area-switcher" aria-label="Area filter">
+      {['All', 'Work', 'Personal'].map((area) => (
+        <button
+          key={area}
+          className={value === area ? 'active' : ''}
+          onClick={() => onChange(area)}
+        >
+          {area}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function SettingsModal({ email, onClose, onSignOut, onRefresh, refreshing }) {
   return (
     <Modal title="Settings" onClose={onClose}>
       <Card>
         <Meta label="Signed in as" value={email} />
         <p className="muted">Your data is protected by Supabase Auth and Row Level Security.</p>
-        <button onClick={onSignOut}>Sign out</button>
+        <div className="button-row two">
+          <button onClick={onRefresh} disabled={refreshing}>
+            {refreshing ? 'Refreshing...' : 'Refresh data'}
+          </button>
+          <button className="secondary" onClick={onSignOut}>Sign out</button>
+        </div>
       </Card>
     </Modal>
   )
