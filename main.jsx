@@ -6,9 +6,9 @@ import './styles.css'
 const NAV = [
   ['inbox', 'Inbox'],
   ['today', 'Today'],
-  ['schedule', 'Schedule'],
   ['waiting', 'Waiting'],
   ['projects', 'Projects'],
+  ['schedule', 'Schedule'],
   ['reference', 'Reference'],
   ['someday', 'Someday'],
 ]
@@ -66,6 +66,24 @@ function normalizeUrl(url) {
 function matchesArea(record, areaFilter) {
   if (areaFilter === 'All') return true
   return record.area_type === areaFilter
+}
+
+function parseEmailList(value) {
+  return (value || '')
+    .split(/[;,\n]/)
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)
+    .filter((email, index, array) => array.indexOf(email) === index)
+}
+
+function emailListToText(value) {
+  if (!Array.isArray(value)) return ''
+  return value.join(', ')
+}
+
+function sharedLabel(value) {
+  if (!Array.isArray(value) || value.length === 0) return ''
+  return value.join(', ')
 }
 
 function App() {
@@ -221,6 +239,7 @@ function GTDApp({ session, onSignOut }) {
       notes: notes || null,
       source: source || null,
       link_url: normalizeUrl(linkUrl) || null,
+      shared_with_emails: [],
       status: 'inbox',
       case_type: null,
       area_type: null,
@@ -267,6 +286,7 @@ function GTDApp({ session, onSignOut }) {
       title: data.title,
       notes: data.notes || null,
       link_url: normalizeUrl(data.link_url) || null,
+      shared_with_emails: project.shared_with_emails || [],
       status: 'active',
       case_type: 'action',
       area_type: project.area_type,
@@ -291,6 +311,7 @@ function GTDApp({ session, onSignOut }) {
       notes: data.notes || null,
       source: data.source || null,
       link_url: normalizeUrl(data.link_url) || null,
+      shared_with_emails: parseEmailList(data.shared_with_emails),
       status: data.status,
       case_type: data.case_type || null,
       area_type: data.area_type || null,
@@ -317,6 +338,8 @@ function GTDApp({ session, onSignOut }) {
   }
 
   async function updateProject(id, data) {
+    const sharedWithEmails = parseEmailList(data.shared_with_emails)
+
     const { error } = await supabase
       .from('projects')
       .update({
@@ -326,11 +349,23 @@ function GTDApp({ session, onSignOut }) {
         area_type: data.area_type,
         due_date: data.due_date || null,
         link_url: normalizeUrl(data.link_url) || null,
+        shared_with_emails: sharedWithEmails,
       })
       .eq('id', id)
 
     if (error) {
       alert(error.message)
+      return
+    }
+
+    // Keep existing project actions visible to the same shared users.
+    const itemShareUpdate = await supabase
+      .from('items')
+      .update({ shared_with_emails: sharedWithEmails })
+      .eq('project_id', id)
+
+    if (itemShareUpdate.error) {
+      alert(itemShareUpdate.error.message)
       return
     }
 
@@ -347,6 +382,7 @@ function GTDApp({ session, onSignOut }) {
         category: data.category || null,
         tags: data.tags ? data.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [],
         link_url: normalizeUrl(data.link_url) || null,
+        shared_with_emails: parseEmailList(data.shared_with_emails),
       })
       .eq('id', id)
 
@@ -481,6 +517,7 @@ function GTDApp({ session, onSignOut }) {
                   <h3>{item.title}</h3>
                   {item.notes && <p>{item.notes}</p>}
                   {item.source && <span className="pill">Source: {item.source}</span>}
+                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
                   <LinkButton url={item.link_url} />
                   <div className="button-row two">
                     <button onClick={() => setProcessingItem(item)}>Process</button>
@@ -513,6 +550,7 @@ function GTDApp({ session, onSignOut }) {
                   <Meta label="Context" value={item.context} />
                   <Meta label="Due date" value={item.due_date} />
                   <Meta label="Scheduled for" value={formatDateTime(item.scheduled_at)} />
+                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
                   <LinkButton url={item.link_url} />
                   <div className="button-row two">
                     <button onClick={() => completeItem(item)}>Mark done</button>
@@ -539,6 +577,7 @@ function GTDApp({ session, onSignOut }) {
                   {item.notes && <p>{item.notes}</p>}
                   <Meta label="Scheduled for" value={formatDateTime(item.scheduled_at)} />
                   <Meta label="Area" value={item.area_type} />
+                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
                   <LinkButton url={item.link_url} />
                   <div className="button-row two">
                     <button onClick={() => completeItem(item)}>Mark done</button>
@@ -564,6 +603,7 @@ function GTDApp({ session, onSignOut }) {
                   <Meta label="Follow-up date" value={item.review_date} />
                   <Meta label="Area" value={item.area_type} />
                   {item.communication_notes && <p>{item.communication_notes}</p>}
+                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
                   <LinkButton url={item.link_url} />
                   <div className="button-row two">
                     <button onClick={() => completeItem(item)}>Resolved</button>
@@ -591,6 +631,7 @@ function GTDApp({ session, onSignOut }) {
                     <Meta label="Area" value={project.area_type} />
                     <Meta label="Due date" value={project.due_date} />
                     <Meta label="Active actions" value={actions.length} />
+                    <Meta label="Shared with" value={sharedLabel(project.shared_with_emails)} />
                     <LinkButton url={project.link_url} />
 
                     {actions.slice(0, 3).map((action) => (
@@ -625,6 +666,7 @@ function GTDApp({ session, onSignOut }) {
                   {reference.content && <p>{reference.content}</p>}
                   <Meta label="Category" value={reference.category} />
                   <Meta label="Tags" value={Array.isArray(reference.tags) ? reference.tags.join(', ') : reference.tags} />
+                  <Meta label="Shared with" value={sharedLabel(reference.shared_with_emails)} />
                   <LinkButton url={reference.link_url} />
                   <button className="secondary" onClick={() => setEditReference(reference)}>Edit</button>
                 </Card>
@@ -645,6 +687,7 @@ function GTDApp({ session, onSignOut }) {
                   {item.notes && <p>{item.notes}</p>}
                   <Meta label="Area" value={item.area_type} />
                   <Meta label="Review date" value={item.review_date} />
+                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
                   <LinkButton url={item.link_url} />
                   <button className="secondary" onClick={() => setEditItem(item)}>Edit</button>
                 </Card>
@@ -783,6 +826,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
     content: item.notes || '',
     notes: item.notes || '',
     link_url: item.link_url || '',
+    shared_with_emails: emailListToText(item.shared_with_emails),
     next_action: item.title,
     action_to_do: item.title,
     project_name: item.title,
@@ -831,6 +875,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
     setSaving(true)
     const processedAt = nowISO()
     const linkUrl = normalizeUrl(form.link_url) || null
+    const sharedWithEmails = parseEmailList(form.shared_with_emails)
 
     if (caseType === 'trash') {
       const { error } = await supabase
@@ -839,6 +884,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           status: 'archived',
           case_type: 'trash',
           link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
           processed_at: processedAt,
           archived_at: processedAt,
         })
@@ -854,6 +900,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           status: 'processed',
           case_type: 'reference',
           link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
           processed_at: processedAt,
         })
         .eq('id', item.id)
@@ -868,6 +915,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
         category: form.category || null,
         tags: form.tags ? form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [],
         link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
       })
 
       return finish(referenceInsert.error)
@@ -883,6 +931,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           review_date: form.review_date || null,
           notes: form.notes || item.notes || null,
           link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
           processed_at: processedAt,
         })
         .eq('id', item.id)
@@ -905,6 +954,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           due_date: form.due_date || null,
           scheduled_at: null,
           link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
           processed_at: processedAt,
         })
         .eq('id', item.id)
@@ -925,6 +975,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           communication_notes: form.communication_notes || null,
           review_date: form.follow_up_date || null,
           link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
           processed_at: processedAt,
         })
         .eq('id', item.id)
@@ -944,6 +995,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           due_date: null,
           scheduled_at: toScheduledAt(form.scheduled_date, form.scheduled_time),
           link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
           processed_at: processedAt,
         })
         .eq('id', item.id)
@@ -962,6 +1014,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           area_type: areaType,
           due_date: form.due_date || null,
           link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
         })
         .select()
         .single()
@@ -982,6 +1035,7 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
           due_date: form.due_date || null,
           scheduled_at: null,
           link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
           processed_at: processedAt,
         })
         .eq('id', item.id)
@@ -1022,6 +1076,12 @@ function ProcessModal({ item, userId, projects, onClose, onDone }) {
         placeholder="Link, optional"
         value={form.link_url}
         onChange={(event) => update('link_url', event.target.value)}
+      />
+
+      <input
+        placeholder="Share with emails, optional"
+        value={form.shared_with_emails}
+        onChange={(event) => update('shared_with_emails', event.target.value)}
       />
 
       {['action', 'delegated', 'project'].includes(caseType) && (
@@ -1171,6 +1231,7 @@ function ProjectModal({ project, actions, onClose, onCompleteAction, onEditActio
       <p>{project.desired_outcome}</p>
       <Meta label="Area" value={project.area_type} />
       <Meta label="Due date" value={project.due_date} />
+      <Meta label="Shared with" value={sharedLabel(project.shared_with_emails)} />
       <LinkButton url={project.link_url} />
 
       <h3>Active project actions</h3>
@@ -1183,6 +1244,7 @@ function ProjectModal({ project, actions, onClose, onCompleteAction, onEditActio
             {action.notes && <p>{action.notes}</p>}
             <Meta label="Due date" value={action.due_date} />
             <Meta label="Context" value={action.context} />
+            <Meta label="Shared with" value={sharedLabel(action.shared_with_emails)} />
             <LinkButton url={action.link_url} />
             <div className="button-row two">
               <button onClick={() => onCompleteAction(action)}>Mark done</button>
@@ -1221,6 +1283,7 @@ function ProjectActionModal({ project, onClose, onSubmit }) {
           context,
           due_date: dueDate,
           link_url: linkUrl,
+          shared_with_emails: sharedWithEmails,
         })}
       >
         Add action
@@ -1235,6 +1298,7 @@ function EditItemModal({ item, projects, onClose, onSubmit }) {
     notes: item.notes || '',
     source: item.source || '',
     link_url: item.link_url || '',
+    shared_with_emails: emailListToText(item.shared_with_emails),
     status: item.status || 'inbox',
     case_type: item.case_type || '',
     area_type: item.area_type || '',
@@ -1260,6 +1324,7 @@ function EditItemModal({ item, projects, onClose, onSubmit }) {
       <textarea placeholder="Notes" value={form.notes} onChange={(event) => update('notes', event.target.value)} />
       <input placeholder="Source" value={form.source} onChange={(event) => update('source', event.target.value)} />
       <input placeholder="Link" value={form.link_url} onChange={(event) => update('link_url', event.target.value)} />
+      <input placeholder="Share with emails, comma separated" value={form.shared_with_emails} onChange={(event) => update('shared_with_emails', event.target.value)} />
 
       <label>Status</label>
       <select value={form.status} onChange={(event) => update('status', event.target.value)}>
@@ -1331,6 +1396,7 @@ function EditProjectModal({ project, onClose, onSubmit }) {
     area_type: project.area_type || 'Personal',
     due_date: project.due_date || '',
     link_url: project.link_url || '',
+    shared_with_emails: emailListToText(project.shared_with_emails),
   })
 
   function update(key, value) {
@@ -1342,6 +1408,7 @@ function EditProjectModal({ project, onClose, onSubmit }) {
       <input placeholder="Project name" value={form.name} onChange={(event) => update('name', event.target.value)} />
       <textarea placeholder="Desired outcome" value={form.desired_outcome} onChange={(event) => update('desired_outcome', event.target.value)} />
       <input placeholder="Link" value={form.link_url} onChange={(event) => update('link_url', event.target.value)} />
+      <input placeholder="Share with emails, comma separated" value={form.shared_with_emails} onChange={(event) => update('shared_with_emails', event.target.value)} />
 
       <label>Status</label>
       <select value={form.status} onChange={(event) => update('status', event.target.value)}>
@@ -1373,6 +1440,7 @@ function EditReferenceModal({ reference, onClose, onSubmit }) {
     category: reference.category || '',
     tags: Array.isArray(reference.tags) ? reference.tags.join(', ') : '',
     link_url: reference.link_url || '',
+    shared_with_emails: emailListToText(reference.shared_with_emails),
   })
 
   function update(key, value) {
@@ -1384,6 +1452,7 @@ function EditReferenceModal({ reference, onClose, onSubmit }) {
       <input placeholder="Title" value={form.title} onChange={(event) => update('title', event.target.value)} />
       <textarea placeholder="Content" value={form.content} onChange={(event) => update('content', event.target.value)} />
       <input placeholder="Link" value={form.link_url} onChange={(event) => update('link_url', event.target.value)} />
+      <input placeholder="Share with emails, comma separated" value={form.shared_with_emails} onChange={(event) => update('shared_with_emails', event.target.value)} />
       <input placeholder="Category" value={form.category} onChange={(event) => update('category', event.target.value)} />
       <input placeholder="Tags, comma separated" value={form.tags} onChange={(event) => update('tags', event.target.value)} />
       <button disabled={!form.title.trim()} onClick={() => onSubmit(form)}>Save reference</button>
