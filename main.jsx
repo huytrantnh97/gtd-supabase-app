@@ -4,13 +4,13 @@ import { supabase } from './lib/supabaseClient'
 import './styles.css'
 
 const NAV = [
-  ['inbox', 'Inbox'],
-  ['today', 'Today'],
-  ['waiting', 'Waiting'],
-  ['projects', 'Projects'],
-  ['schedule', 'Schedule'],
-  ['reference', 'Reference'],
-  ['someday', 'Someday'],
+  ['inbox', '📥', 'Inbox'],
+  ['today', '✅', 'Today'],
+  ['waiting', '⏳', 'Waiting'],
+  ['projects', '📁', 'Projects'],
+  ['schedule', '🗓️', 'Schedule'],
+  ['reference', '📚', 'Reference'],
+  ['someday', '🌱', 'Someday'],
 ]
 
 const CASES = [
@@ -177,7 +177,7 @@ function App() {
 function GTDApp({ session, onSignOut }) {
   const user = session.user
 
-  const [screen, setScreen] = useState('inbox')
+  const [screen, setScreen] = useState('today')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [notice, setNotice] = useState('')
@@ -490,13 +490,15 @@ function GTDApp({ session, onSignOut }) {
       </header>
 
       <nav className="tabs">
-        {NAV.map(([key, label]) => (
+        {NAV.map(([key, icon, label]) => (
           <button
             key={key}
             className={screen === key ? 'active' : ''}
             onClick={() => setScreen(key)}
+            aria-label={label}
+            title={label}
           >
-            {label}
+            <span className="tab-icon" aria-hidden="true">{icon}</span>
           </button>
         ))}
       </nav>
