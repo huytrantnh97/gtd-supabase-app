@@ -229,17 +229,25 @@ label {
 
 .tabs button {
   flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
   background: white;
   color: #171717;
   border: 1px solid #ded7cc;
-  padding: 10px 14px;
+  padding: 0;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 20px;
 }
 
 .tabs button.active {
   background: #171717;
   color: white;
+}
+
+.tab-icon {
+  line-height: 1;
 }
 
 .area-switcher {
