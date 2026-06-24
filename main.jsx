@@ -11,6 +11,7 @@ const NAV = [
   ['schedule', '🗓️', 'Schedule'],
   ['reference', '📚', 'Reference'],
   ['someday', '🌱', 'Someday'],
+  ['done', '🏁', 'Done'],
 ]
 
 const CASES = [
@@ -280,6 +281,40 @@ function GTDApp({ session, onSignOut }) {
     await loadAll({ quiet: true })
   }
 
+  async function deleteAllDone() {
+    if (!window.confirm('Delete all completed tasks and projects permanently? This cannot be undone.')) return
+
+    const completedItemIds = items
+      .filter((item) => item.status === 'completed')
+      .map((item) => item.id)
+
+    const completedProjectIds = projects
+      .filter((project) => project.status === 'completed')
+      .map((project) => project.id)
+
+    const ops = []
+
+    if (completedItemIds.length > 0) {
+      ops.push(supabase.from('items').delete().in('id', completedItemIds))
+    }
+
+    if (completedProjectIds.length > 0) {
+      ops.push(supabase.from('projects').delete().in('id', completedProjectIds))
+    }
+
+    if (ops.length === 0) return
+
+    const results = await Promise.all(ops)
+    const err = results.find((r) => r.error)?.error
+
+    if (err) {
+      alert(err.message)
+      return
+    }
+
+    await loadAll({ quiet: true })
+  }
+
   async function addProjectAction(project, data) {
     const { error } = await supabase.from('items').insert({
       user_id: user.id,
@@ -401,13 +436,25 @@ function GTDApp({ session, onSignOut }) {
 
   const inboxItems = items.filter((item) => item.status === 'inbox')
 
-  const todayItems = items.filter((item) => {
-    if (item.status !== 'active') return false
-    if (!matchesArea(item, todayAreaFilter)) return false
-    if (item.case_type === 'action') return true
-    if (item.case_type === 'scheduled') return isTodayOrEarlier(item.scheduled_at)
-    return false
-  })
+  const todayItems = items
+    .filter((item) => {
+      if (item.status !== 'active') return false
+      if (!matchesArea(item, todayAreaFilter)) return false
+      if (item.case_type === 'action') return true
+      if (item.case_type === 'scheduled') return isTodayOrEarlier(item.scheduled_at)
+      return false
+    })
+    .slice()
+    .sort((a, b) => {
+      const far = '9999-99-99'
+      const aDue = a.due_date || far
+      const bDue = b.due_date || far
+      if (aDue !== bDue) return aDue.localeCompare(bDue)
+      const aSched = a.scheduled_at || far
+      const bSched = b.scheduled_at || far
+      if (aSched !== bSched) return aSched.localeCompare(bSched)
+      return (a.created_at || '').localeCompare(b.created_at || '')
+    })
 
   const scheduledItems = items
     .filter((item) => item.status === 'active' && item.case_type === 'scheduled')
@@ -433,6 +480,16 @@ function GTDApp({ session, onSignOut }) {
   const somedayItems = items.filter((item) => {
     return item.status === 'processed' && item.case_type === 'someday'
   })
+
+  const doneItems = items
+    .filter((item) => item.status === 'completed')
+    .slice()
+    .sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || ''))
+
+  const doneProjects = projects
+    .filter((project) => project.status === 'completed')
+    .slice()
+    .sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || ''))
 
   const projectActions = (projectId) => {
     return items.filter((item) => {
@@ -695,6 +752,62 @@ function GTDApp({ session, onSignOut }) {
                 </Card>
               ))}
             </div>
+          </section>
+        )}
+
+        {!loading && screen === 'done' && (
+          <section>
+            <ScreenTitle
+              title="Done"
+              subtitle={`${doneItems.length} completed task(s), ${doneProjects.length} completed project(s).`}
+            />
+
+            {(doneItems.length > 0 || doneProjects.length > 0) && (
+              <button
+                className="secondary small"
+                style={{ marginBottom: '14px' }}
+                onClick={deleteAllDone}
+              >
+                🗑 Delete all done
+              </button>
+            )}
+
+            {doneProjects.length > 0 && (
+              <>
+                <h3 style={{ margin: '0 0 10px', fontSize: '18px', color: '#555' }}>Completed Projects</h3>
+                <div className="list" style={{ marginBottom: '20px' }}>
+                  {doneProjects.map((project) => (
+                    <Card key={project.id}>
+                      <h3>{project.name}</h3>
+                      <p>{project.desired_outcome}</p>
+                      <Meta label="Area" value={project.area_type} />
+                      <Meta label="Completed" value={project.completed_at ? formatDateTime(project.completed_at) : ''} />
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {doneItems.length === 0 && doneProjects.length === 0 && (
+              <Empty text="No completed tasks or projects yet." />
+            )}
+
+            {doneItems.length > 0 && (
+              <>
+                <h3 style={{ margin: '0 0 10px', fontSize: '18px', color: '#555' }}>Completed Tasks</h3>
+                <div className="list">
+                  {doneItems.map((item) => (
+                    <Card key={item.id}>
+                      <h3>{item.title}</h3>
+                      {item.notes && <p>{item.notes}</p>}
+                      <Meta label="Area" value={item.area_type} />
+                      <Meta label="Project" value={projectById[item.project_id]?.name} />
+                      <Meta label="Completed" value={item.completed_at ? formatDateTime(item.completed_at) : ''} />
+                    </Card>
+                  ))}
+                </div>
+              </>
+            )}
           </section>
         )}
       </main>
@@ -1285,7 +1398,6 @@ function ProjectActionModal({ project, onClose, onSubmit }) {
           context,
           due_date: dueDate,
           link_url: linkUrl,
-          shared_with_emails: sharedWithEmails,
         })}
       >
         Add action
