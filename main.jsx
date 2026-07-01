@@ -573,15 +573,21 @@ function GTDApp({ session, onSignOut }) {
             <div className="list">
               {inboxItems.map((item) => (
                 <Card key={item.id}>
-                  <h3>{item.title}</h3>
-                  {item.notes && <p>{item.notes}</p>}
-                  {item.source && <span className="pill">Source: {item.source}</span>}
-                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
-                  <LinkButton url={item.link_url} />
-                  <div className="button-row two">
-                    <button onClick={() => setProcessingItem(item)}>Process</button>
-                    <button className="secondary" onClick={() => setEditItem(item)}>Edit</button>
-                  </div>
+                  <CardBody>
+                    <h3>{item.title}</h3>
+                    {item.notes && <p className="card-notes">{item.notes}</p>}
+                    <CardTags>
+                      <CardTag label="Source" value={item.source} />
+                      <CardTag label="Shared" value={sharedLabel(item.shared_with_emails)} />
+                      {item.link_url && (
+                        <a className="card-tag" href={normalizeUrl(item.link_url)} target="_blank" rel="noreferrer">🔗 Link</a>
+                      )}
+                    </CardTags>
+                  </CardBody>
+                  <CardFooter>
+                    <CardAction label="Process" onClick={() => setProcessingItem(item)} variant="primary" />
+                    <CardAction label="Edit" onClick={() => setEditItem(item)} />
+                  </CardFooter>
                 </Card>
               ))}
             </div>
@@ -600,21 +606,27 @@ function GTDApp({ session, onSignOut }) {
             <div className="list">
               {todayItems.map((item) => (
                 <Card key={item.id}>
-                  <h3>{item.title}</h3>
-                  {item.notes && <p>{item.notes}</p>}
-                  <Meta label="Type" value={item.case_type === 'scheduled' ? 'Scheduled' : 'Action'} />
-                  <Meta label="Area" value={item.area_type} />
-                  <Meta label="Project" value={projectById[item.project_id]?.name} />
-                  <Meta label="Priority" value={item.priority} />
-                  <Meta label="Context" value={item.context} />
-                  <Meta label="Due date" value={item.due_date} />
-                  <Meta label="Scheduled for" value={formatDateTime(item.scheduled_at)} />
-                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
-                  <LinkButton url={item.link_url} />
-                  <div className="button-row two">
-                    <button onClick={() => completeItem(item)}>Mark done</button>
-                    <button className="secondary" onClick={() => setEditItem(item)}>Edit</button>
-                  </div>
+                  <CardBody>
+                    <h3>{item.title}</h3>
+                    {item.notes && <p className="card-notes">{item.notes}</p>}
+                    <CardTags>
+                      {item.due_date && <CardTag value={`📅 ${item.due_date}`} variant="urgent" />}
+                      {item.scheduled_at && item.case_type === 'scheduled' && (
+                        <CardTag value={`🕐 ${formatDateTime(item.scheduled_at)}`} variant="scheduled-tag" />
+                      )}
+                      <CardTag value={projectById[item.project_id]?.name} variant="project-tag" />
+                      <CardTag label="Priority" value={item.priority} />
+                      <CardTag label="@" value={item.context} />
+                      <CardTag value={item.area_type} />
+                      {item.link_url && (
+                        <a className="card-tag" href={normalizeUrl(item.link_url)} target="_blank" rel="noreferrer">🔗 Link</a>
+                      )}
+                    </CardTags>
+                  </CardBody>
+                  <CardFooter>
+                    <CardAction label="✓ Mark done" onClick={() => completeItem(item)} variant="primary" />
+                    <CardAction label="Edit" onClick={() => setEditItem(item)} />
+                  </CardFooter>
                 </Card>
               ))}
             </div>
@@ -632,16 +644,22 @@ function GTDApp({ session, onSignOut }) {
             <div className="list">
               {scheduledItems.map((item) => (
                 <Card key={item.id}>
-                  <h3>{item.title}</h3>
-                  {item.notes && <p>{item.notes}</p>}
-                  <Meta label="Scheduled for" value={formatDateTime(item.scheduled_at)} />
-                  <Meta label="Area" value={item.area_type} />
-                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
-                  <LinkButton url={item.link_url} />
-                  <div className="button-row two">
-                    <button onClick={() => completeItem(item)}>Mark done</button>
-                    <button className="secondary" onClick={() => setEditItem(item)}>Edit</button>
-                  </div>
+                  <CardBody>
+                    <h3>{item.title}</h3>
+                    {item.notes && <p className="card-notes">{item.notes}</p>}
+                    <CardTags>
+                      {item.scheduled_at && <CardTag value={`🕐 ${formatDateTime(item.scheduled_at)}`} variant="scheduled-tag" />}
+                      <CardTag value={item.area_type} />
+                      <CardTag label="Shared" value={sharedLabel(item.shared_with_emails)} />
+                      {item.link_url && (
+                        <a className="card-tag" href={normalizeUrl(item.link_url)} target="_blank" rel="noreferrer">🔗 Link</a>
+                      )}
+                    </CardTags>
+                  </CardBody>
+                  <CardFooter>
+                    <CardAction label="✓ Mark done" onClick={() => completeItem(item)} variant="primary" />
+                    <CardAction label="Edit" onClick={() => setEditItem(item)} />
+                  </CardFooter>
                 </Card>
               ))}
             </div>
@@ -657,17 +675,22 @@ function GTDApp({ session, onSignOut }) {
             <div className="list">
               {waitingItems.map((item) => (
                 <Card key={item.id}>
-                  <h3>{item.waiting_for || item.title}</h3>
-                  <Meta label="Person responsible" value={item.person_responsible} />
-                  <Meta label="Follow-up date" value={item.review_date} />
-                  <Meta label="Area" value={item.area_type} />
-                  {item.communication_notes && <p>{item.communication_notes}</p>}
-                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
-                  <LinkButton url={item.link_url} />
-                  <div className="button-row two">
-                    <button onClick={() => completeItem(item)}>Resolved</button>
-                    <button className="secondary" onClick={() => setEditItem(item)}>Edit</button>
-                  </div>
+                  <CardBody>
+                    <h3>{item.waiting_for || item.title}</h3>
+                    {item.communication_notes && <p className="card-notes">{item.communication_notes}</p>}
+                    <CardTags>
+                      <CardTag label="👤" value={item.person_responsible} />
+                      {item.review_date && <CardTag value={`📅 Follow-up ${item.review_date}`} variant="urgent" />}
+                      <CardTag value={item.area_type} />
+                      {item.link_url && (
+                        <a className="card-tag" href={normalizeUrl(item.link_url)} target="_blank" rel="noreferrer">🔗 Link</a>
+                      )}
+                    </CardTags>
+                  </CardBody>
+                  <CardFooter>
+                    <CardAction label="✓ Resolved" onClick={() => completeItem(item)} variant="primary" />
+                    <CardAction label="Edit" onClick={() => setEditItem(item)} />
+                  </CardFooter>
                 </Card>
               ))}
             </div>
@@ -685,27 +708,31 @@ function GTDApp({ session, onSignOut }) {
                 const actions = projectActions(project.id)
                 return (
                   <Card key={project.id}>
-                    <h3>{project.name}</h3>
-                    <p>{project.desired_outcome}</p>
-                    <Meta label="Area" value={project.area_type} />
-                    <Meta label="Due date" value={project.due_date} />
-                    <Meta label="Active actions" value={actions.length} />
-                    <Meta label="Shared with" value={sharedLabel(project.shared_with_emails)} />
-                    <LinkButton url={project.link_url} />
+                    <CardBody>
+                      <h3>{project.name}</h3>
+                      <p className="card-notes">{project.desired_outcome}</p>
+                      <CardTags>
+                        {project.due_date && <CardTag value={`📅 ${project.due_date}`} variant="urgent" />}
+                        <CardTag value={project.area_type} />
+                        <CardTag label={actions.length === 1 ? 'action' : 'actions'} value={actions.length} />
+                        {project.link_url && (
+                          <a className="card-tag" href={normalizeUrl(project.link_url)} target="_blank" rel="noreferrer">🔗 Link</a>
+                        )}
+                      </CardTags>
 
-                    {actions.slice(0, 3).map((action) => (
-                      <div className="mini-action" key={action.id}>
-                        <span>{action.title}</span>
-                        <button className="tiny" onClick={() => completeItem(action)}>Done</button>
-                      </div>
-                    ))}
-
-                    <div className="button-row">
-                      <button onClick={() => setProjectToView(project)}>View</button>
-                      <button className="secondary" onClick={() => setNewProjectActionOpen(project)}>Add action</button>
-                      <button className="secondary" onClick={() => setEditProject(project)}>Edit</button>
-                      <button className="secondary" onClick={() => completeProject(project)}>Complete</button>
-                    </div>
+                      {actions.slice(0, 3).map((action) => (
+                        <div className="mini-action" key={action.id}>
+                          <span>{action.title}</span>
+                          <button onClick={() => completeItem(action)}>✓ Done</button>
+                        </div>
+                      ))}
+                    </CardBody>
+                    <CardFooter>
+                      <CardAction label="View" onClick={() => setProjectToView(project)} variant="primary" />
+                      <CardAction label="+ Action" onClick={() => setNewProjectActionOpen(project)} />
+                      <CardAction label="Edit" onClick={() => setEditProject(project)} />
+                      <CardAction label="Complete" onClick={() => completeProject(project)} />
+                    </CardFooter>
                   </Card>
                 )
               })}
@@ -721,13 +748,22 @@ function GTDApp({ session, onSignOut }) {
             <div className="list">
               {references.map((reference) => (
                 <Card key={reference.id}>
-                  <h3>{reference.title}</h3>
-                  {reference.content && <p>{reference.content}</p>}
-                  <Meta label="Category" value={reference.category} />
-                  <Meta label="Tags" value={Array.isArray(reference.tags) ? reference.tags.join(', ') : reference.tags} />
-                  <Meta label="Shared with" value={sharedLabel(reference.shared_with_emails)} />
-                  <LinkButton url={reference.link_url} />
-                  <button className="secondary" onClick={() => setEditReference(reference)}>Edit</button>
+                  <CardBody>
+                    <h3>{reference.title}</h3>
+                    {reference.content && <p className="card-notes">{reference.content}</p>}
+                    <CardTags>
+                      <CardTag value={reference.category} />
+                      {(Array.isArray(reference.tags) ? reference.tags : []).map((tag) => (
+                        <CardTag key={tag} value={tag} />
+                      ))}
+                      {reference.link_url && (
+                        <a className="card-tag" href={normalizeUrl(reference.link_url)} target="_blank" rel="noreferrer">🔗 Link</a>
+                      )}
+                    </CardTags>
+                  </CardBody>
+                  <CardFooter>
+                    <CardAction label="Edit" onClick={() => setEditReference(reference)} />
+                  </CardFooter>
                 </Card>
               ))}
             </div>
@@ -742,13 +778,20 @@ function GTDApp({ session, onSignOut }) {
             <div className="list">
               {somedayItems.map((item) => (
                 <Card key={item.id}>
-                  <h3>{item.title}</h3>
-                  {item.notes && <p>{item.notes}</p>}
-                  <Meta label="Area" value={item.area_type} />
-                  <Meta label="Review date" value={item.review_date} />
-                  <Meta label="Shared with" value={sharedLabel(item.shared_with_emails)} />
-                  <LinkButton url={item.link_url} />
-                  <button className="secondary" onClick={() => setEditItem(item)}>Edit</button>
+                  <CardBody>
+                    <h3>{item.title}</h3>
+                    {item.notes && <p className="card-notes">{item.notes}</p>}
+                    <CardTags>
+                      {item.review_date && <CardTag value={`🔁 Review ${item.review_date}`} />}
+                      <CardTag value={item.area_type} />
+                      {item.link_url && (
+                        <a className="card-tag" href={normalizeUrl(item.link_url)} target="_blank" rel="noreferrer">🔗 Link</a>
+                      )}
+                    </CardTags>
+                  </CardBody>
+                  <CardFooter>
+                    <CardAction label="Edit" onClick={() => setEditItem(item)} />
+                  </CardFooter>
                 </Card>
               ))}
             </div>
@@ -778,10 +821,14 @@ function GTDApp({ session, onSignOut }) {
                 <div className="list" style={{ marginBottom: '20px' }}>
                   {doneProjects.map((project) => (
                     <Card key={project.id}>
-                      <h3>{project.name}</h3>
-                      <p>{project.desired_outcome}</p>
-                      <Meta label="Area" value={project.area_type} />
-                      <Meta label="Completed" value={project.completed_at ? formatDateTime(project.completed_at) : ''} />
+                      <CardBody>
+                        <h3>{project.name}</h3>
+                        <p className="card-notes">{project.desired_outcome}</p>
+                        <CardTags>
+                          <CardTag value={project.area_type} />
+                          {project.completed_at && <CardTag value={`✓ ${formatDateTime(project.completed_at)}`} />}
+                        </CardTags>
+                      </CardBody>
                     </Card>
                   ))}
                 </div>
@@ -798,11 +845,15 @@ function GTDApp({ session, onSignOut }) {
                 <div className="list">
                   {doneItems.map((item) => (
                     <Card key={item.id}>
-                      <h3>{item.title}</h3>
-                      {item.notes && <p>{item.notes}</p>}
-                      <Meta label="Area" value={item.area_type} />
-                      <Meta label="Project" value={projectById[item.project_id]?.name} />
-                      <Meta label="Completed" value={item.completed_at ? formatDateTime(item.completed_at) : ''} />
+                      <CardBody>
+                        <h3>{item.title}</h3>
+                        {item.notes && <p className="card-notes">{item.notes}</p>}
+                        <CardTags>
+                          <CardTag value={projectById[item.project_id]?.name} variant="project-tag" />
+                          <CardTag value={item.area_type} />
+                          {item.completed_at && <CardTag value={`✓ ${formatDateTime(item.completed_at)}`} />}
+                        </CardTags>
+                      </CardBody>
                     </Card>
                   ))}
                 </div>
@@ -1355,16 +1406,21 @@ function ProjectModal({ project, actions, onClose, onCompleteAction, onEditActio
       <div className="list">
         {actions.map((action) => (
           <Card key={action.id}>
-            <h3>{action.title}</h3>
-            {action.notes && <p>{action.notes}</p>}
-            <Meta label="Due date" value={action.due_date} />
-            <Meta label="Context" value={action.context} />
-            <Meta label="Shared with" value={sharedLabel(action.shared_with_emails)} />
-            <LinkButton url={action.link_url} />
-            <div className="button-row two">
-              <button onClick={() => onCompleteAction(action)}>Mark done</button>
-              <button className="secondary" onClick={() => onEditAction(action)}>Edit</button>
-            </div>
+            <CardBody>
+              <h3>{action.title}</h3>
+              {action.notes && <p className="card-notes">{action.notes}</p>}
+              <CardTags>
+                {action.due_date && <CardTag value={`📅 ${action.due_date}`} variant="urgent" />}
+                <CardTag label="@" value={action.context} />
+                {action.link_url && (
+                  <a className="card-tag" href={normalizeUrl(action.link_url)} target="_blank" rel="noreferrer">🔗 Link</a>
+                )}
+              </CardTags>
+            </CardBody>
+            <CardFooter>
+              <CardAction label="✓ Mark done" onClick={() => onCompleteAction(action)} variant="primary" />
+              <CardAction label="Edit" onClick={() => onEditAction(action)} />
+            </CardFooter>
           </Card>
         ))}
       </div>
@@ -1642,6 +1698,50 @@ function ScreenTitle({ title, subtitle }) {
 
 function Card({ children }) {
   return <article className="card">{children}</article>
+}
+
+function CardBody({ children }) {
+  return <div className="card-body">{children}</div>
+}
+
+function CardTags({ children }) {
+  const validChildren = React.Children.toArray(children).filter(Boolean)
+  if (validChildren.length === 0) return null
+  return <div className="card-tags">{validChildren}</div>
+}
+
+function CardTag({ label, value, variant }) {
+  if (!value && value !== 0) return null
+  return (
+    <span className={`card-tag${variant ? ` ${variant}` : ''}`}>
+      {label && <span className="card-tag-label">{label} </span>}
+      {value}
+    </span>
+  )
+}
+
+function CardFooter({ children }) {
+  const validChildren = React.Children.toArray(children).filter(Boolean)
+  if (validChildren.length === 0) return null
+  const interleaved = []
+  validChildren.forEach((child, i) => {
+    interleaved.push(child)
+    if (i < validChildren.length - 1) {
+      interleaved.push(<span key={`sep-${i}`} className="card-action-sep" aria-hidden="true" />)
+    }
+  })
+  return <div className="card-footer">{interleaved}</div>
+}
+
+function CardAction({ label, onClick, variant }) {
+  return (
+    <button
+      className={`card-action${variant ? ` ${variant}` : ''}`}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  )
 }
 
 function Empty({ text }) {
