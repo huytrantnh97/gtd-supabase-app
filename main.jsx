@@ -491,6 +491,21 @@ function GTDApp({ session, onSignOut }) {
     .slice()
     .sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || ''))
 
+  // Unfiltered counts for tab badges (ignore area filters so badges reflect full totals)
+  const tabCounts = {
+    inbox: items.filter((i) => i.status === 'inbox').length,
+    today: items.filter((i) => {
+      if (i.status !== 'active') return false
+      if (i.case_type === 'action') return true
+      if (i.case_type === 'scheduled') return isTodayOrEarlier(i.scheduled_at)
+      return false
+    }).length,
+    waiting: items.filter((i) => i.status === 'active' && i.case_type === 'delegated').length,
+    projects: projects.filter((p) => p.status === 'active').length,
+    schedule: items.filter((i) => i.status === 'active' && i.case_type === 'scheduled').length,
+    someday: items.filter((i) => i.status === 'processed' && i.case_type === 'someday').length,
+  }
+
   const projectActions = (projectId) => {
     return items.filter((item) => {
       return item.project_id === projectId && item.status === 'active'
@@ -547,17 +562,21 @@ function GTDApp({ session, onSignOut }) {
       </header>
 
       <nav className="tabs">
-        {NAV.map(([key, icon, label]) => (
-          <button
-            key={key}
-            className={screen === key ? 'active' : ''}
-            onClick={() => setScreen(key)}
-            aria-label={label}
-            title={label}
-          >
-            <span className="tab-icon" aria-hidden="true">{icon}</span>
-          </button>
-        ))}
+        {NAV.map(([key, icon, label]) => {
+          const count = tabCounts[key]
+          return (
+            <button
+              key={key}
+              className={screen === key ? 'active' : ''}
+              onClick={() => setScreen(key)}
+              aria-label={`${label}${count ? ` (${count})` : ''}`}
+              title={label}
+            >
+              <span className="tab-icon" aria-hidden="true">{icon}</span>
+              {count > 0 && <span className="tab-badge">{count > 99 ? '99+' : count}</span>}
+            </button>
+          )
+        })}
       </nav>
 
       {notice && <div className="notice">{notice}</div>}
