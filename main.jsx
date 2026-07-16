@@ -115,12 +115,13 @@ function App() {
     const { error } = await supabase.auth.signUp({ email, password })
 
     if (error) {
-      setAuthMessage(error.message)
-      alert(error.message)
+      const msg = error.message || error.msg || JSON.stringify(error) || 'Unknown error occurred'
+      setAuthMessage(msg)
+      alert(msg)
       return
     }
 
-    setAuthMessage('Account created. Check your email if confirmation is enabled, then sign in.')
+    setAuthMessage('Account created! You can now sign in.')
   }
 
   async function handleSignIn() {
@@ -128,8 +129,9 @@ function App() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setAuthMessage(error.message)
-      alert(error.message)
+      const msg = error.message || error.msg || JSON.stringify(error) || 'Unknown error occurred'
+      setAuthMessage(msg)
+      alert(msg)
       return
     }
 
