@@ -593,7 +593,7 @@ function GTDApp({ session, onSignOut }) {
 
             <div className="list">
               {inboxItems.map((item) => (
-                <Card key={item.id}>
+                <Card key={item.id} stripe="accent">
                   <CardBody>
                     <h3>{item.title}</h3>
                     {item.notes && <p className="card-notes">{item.notes}</p>}
@@ -626,7 +626,7 @@ function GTDApp({ session, onSignOut }) {
 
             <div className="list">
               {todayItems.map((item) => (
-                <Card key={item.id}>
+                <Card key={item.id} stripe={item.due_date && item.due_date < new Date().toISOString().slice(0,10) ? 'urgent' : item.case_type === 'scheduled' ? 'ok' : undefined}>
                   <CardBody>
                     <h3>{item.title}</h3>
                     {item.notes && <p className="card-notes">{item.notes}</p>}
@@ -664,7 +664,7 @@ function GTDApp({ session, onSignOut }) {
 
             <div className="list">
               {scheduledItems.map((item) => (
-                <Card key={item.id}>
+                <Card key={item.id} stripe="ok">
                   <CardBody>
                     <h3>{item.title}</h3>
                     {item.notes && <p className="card-notes">{item.notes}</p>}
@@ -695,7 +695,7 @@ function GTDApp({ session, onSignOut }) {
 
             <div className="list">
               {waitingItems.map((item) => (
-                <Card key={item.id}>
+                <Card key={item.id} stripe="accent">
                   <CardBody>
                     <h3>{item.waiting_for || item.title}</h3>
                     {item.communication_notes && <p className="card-notes">{item.communication_notes}</p>}
@@ -728,7 +728,7 @@ function GTDApp({ session, onSignOut }) {
               {activeProjects.map((project) => {
                 const actions = projectActions(project.id)
                 return (
-                  <Card key={project.id}>
+                  <Card key={project.id} stripe="accent">
                     <CardBody>
                       <h3>{project.name}</h3>
                       <p className="card-notes">{project.desired_outcome}</p>
@@ -1426,7 +1426,7 @@ function ProjectModal({ project, actions, onClose, onCompleteAction, onEditActio
 
       <div className="list">
         {actions.map((action) => (
-          <Card key={action.id}>
+          <Card key={action.id} stripe="ok">
             <CardBody>
               <h3>{action.title}</h3>
               {action.notes && <p className="card-notes">{action.notes}</p>}
@@ -1717,8 +1717,14 @@ function ScreenTitle({ title, subtitle }) {
   )
 }
 
-function Card({ children }) {
-  return <article className="card">{children}</article>
+/* stripe variants: 'urgent' | 'ok' | 'accent' | undefined (grey) */
+function Card({ children, stripe }) {
+  return (
+    <article className="card">
+      <div className={`card-stripe${stripe ? ` ${stripe}` : ''}`} />
+      <div className="card-inner">{children}</div>
+    </article>
+  )
 }
 
 function CardBody({ children }) {
@@ -1771,7 +1777,6 @@ function Empty({ text }) {
 
 function Meta({ label, value }) {
   if (!value && value !== 0) return null
-
   return (
     <p className="meta">
       <strong>{label}:</strong> {value}
