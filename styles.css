@@ -4,15 +4,37 @@
 
 :root {
   color-scheme: light;
-  background: #faf9f6;
-  color: #171717;
+  background: #F4F6F8;
+  color: #1A202C;
+
+  --navy:        #1E3A5F;
+  --navy-light:  #2C5282;
+  --bg:          #F4F6F8;
+  --white:       #FFFFFF;
+  --border:      #D8DFE8;
+  --border-light:#EDF2F7;
+  --text:        #1A202C;
+  --text-sec:    #4A5568;
+  --text-muted:  #718096;
+  --card-foot:   #F7FAFC;
+  --tag-bg:      #EBF0F7;
+  --tag-text:    #2C5282;
+  --tag-urgent-bg:   #FFF5F5;
+  --tag-urgent-text: #9B2C2C;
+  --tag-project-bg:  #EBF4FF;
+  --tag-project-text:#1A56DB;
+  --tag-sched-bg:    #F0FFF4;
+  --tag-sched-text:  #276749;
+  --action-primary-bg:   #EBF0F7;
+  --action-primary-text: #1E3A5F;
+  --action-hover-bg:     #DCE6F0;
 }
 
 body {
   margin: 0;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #faf9f6;
-  color: #171717;
+  background: var(--bg);
+  color: var(--text);
 }
 
 button,
@@ -24,44 +46,54 @@ select {
 
 button {
   border: 0;
-  border-radius: 18px;
-  padding: 14px 16px;
-  background: #171717;
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: var(--navy);
   color: white;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
+  transition: background 0.15s;
+}
+
+button:hover {
+  background: var(--navy-light);
 }
 
 button.secondary {
-  background: white;
-  color: #171717;
-  border: 1px solid #ded7cc;
+  background: var(--white);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+button.secondary:hover {
+  background: var(--bg);
 }
 
 button.small {
-  padding: 10px 14px;
-  border-radius: 14px;
+  padding: 8px 14px;
+  border-radius: 10px;
   min-width: 100px;
+  font-size: 13.5px;
 }
 
 button.tiny {
-  padding: 7px 10px;
-  border-radius: 10px;
+  padding: 5px 10px;
+  border-radius: 8px;
   font-size: 12px;
   margin: 0;
 }
 
 button.icon {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border-radius: 50%;
-  font-size: 28px;
+  font-size: 20px;
   line-height: 1;
 }
 
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -69,32 +101,37 @@ input,
 textarea,
 select {
   width: 100%;
-  border: 1px solid #ded7cc;
-  border-radius: 18px;
-  padding: 14px 16px;
-  background: white;
-  color: #171717;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--white);
+  color: var(--text);
   outline: none;
+  transition: border-color 0.15s;
 }
 
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: #171717;
+  border-color: var(--navy);
 }
 
 textarea {
-  min-height: 96px;
+  min-height: 90px;
   resize: vertical;
 }
 
 label {
   display: block;
-  margin: 4px 0 -6px;
-  font-size: 13px;
-  font-weight: 800;
-  color: #555;
+  margin: 4px 0 -4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
+
+/* ── Auth ─────────────────────────────────── */
 
 .auth-page,
 .center-page {
@@ -102,53 +139,63 @@ label {
   display: grid;
   place-items: center;
   padding: 20px;
+  background: var(--bg);
 }
 
 .auth-card {
-  width: min(100%, 520px);
-  background: white;
-  border: 1px solid #e5ded3;
-  border-radius: 28px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.08);
-  padding: 24px;
+  width: min(100%, 480px);
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(30,58,95,0.08);
+  padding: 28px 24px;
   display: grid;
   gap: 12px;
 }
 
 .auth-card h1 {
-  font-size: 42px;
-  margin: 0 0 4px;
+  font-size: 36px;
+  font-weight: 800;
+  margin: 0 0 2px;
+  color: var(--navy);
 }
 
 .auth-card p {
-  margin: 0 0 10px;
-  color: #333;
+  margin: 0 0 8px;
+  color: var(--text-sec);
+  font-size: 14px;
 }
+
+/* ── Notices ──────────────────────────────── */
 
 .message,
 .notice {
   width: min(100%, 820px);
   margin: 12px auto;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: #fff4d6;
-  color: #4d3500;
-  border: 1px solid #f0da9b;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #EBF4FF;
+  color: #1A56DB;
+  border: 1px solid #BFD9F7;
+  font-size: 13.5px;
 }
+
+/* ── App shell ────────────────────────────── */
 
 .app {
   min-height: 100vh;
   padding-bottom: 110px;
+  background: var(--bg);
 }
 
 .app-header {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: rgba(250, 249, 246, 0.92);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid #e9e2d8;
-  padding: 14px;
+  background: rgba(244, 246, 248, 0.94);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -157,13 +204,15 @@ label {
 
 .app-header h1 {
   margin: 0;
-  font-size: 26px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--navy);
 }
 
 .app-header p {
   margin: 2px 0 0;
-  font-size: 13px;
-  color: #555;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .header-actions {
@@ -174,15 +223,24 @@ label {
 
 .refresh-button,
 .menu-button {
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   border-radius: 50%;
-  font-size: 22px;
+  font-size: 18px;
+  background: var(--white);
+  color: var(--text-sec);
+  border: 1px solid var(--border);
+}
+
+.refresh-button:hover,
+.menu-button:hover {
+  background: var(--bg);
+  color: var(--navy);
 }
 
 .refresh-button {
-  font-size: 26px;
+  font-size: 20px;
 }
 
 .header-menu {
@@ -191,40 +249,50 @@ label {
 
 .menu-popover {
   position: absolute;
-  top: 54px;
+  top: 48px;
   right: 0;
   width: 180px;
-  padding: 8px;
-  background: white;
-  border: 1px solid #ded7cc;
-  border-radius: 18px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+  padding: 6px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(30,58,95,0.14);
   z-index: 30;
 }
 
 .menu-item {
   width: 100%;
   background: transparent;
-  color: #171717;
+  color: var(--text);
   text-align: left;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .menu-item:hover {
-  background: #f4efe7;
+  background: var(--bg);
+  color: var(--navy);
 }
 
 .menu-item.danger {
-  color: #a33;
+  color: #9B2C2C;
 }
+
+.menu-item.danger:hover {
+  background: #FFF5F5;
+}
+
+/* ── Tabs ─────────────────────────────────── */
 
 .tabs {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   overflow-x: auto;
-  padding: 12px 14px;
-  border-bottom: 1px solid #e9e2d8;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--white);
 }
 
 .tabs button {
@@ -236,17 +304,25 @@ label {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  background: white;
-  color: #171717;
-  border: 1px solid #ded7cc;
+  background: transparent;
+  color: var(--text-sec);
+  border: 1px solid var(--border);
   padding: 5px 0 6px;
   border-radius: 999px;
-  font-size: 20px;
+  font-size: 19px;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.tabs button:hover {
+  background: var(--bg);
+  color: var(--navy);
+  border-color: #B2C3D8;
 }
 
 .tabs button.active {
-  background: #171717;
+  background: var(--navy);
   color: white;
+  border-color: var(--navy);
 }
 
 .tab-icon {
@@ -257,42 +333,53 @@ label {
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
-  color: #777;
+  color: var(--text-muted);
   letter-spacing: -0.01em;
 }
 
 .tabs button.active .tab-badge {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.65);
 }
+
+/* ── Area switcher ────────────────────────── */
 
 .area-switcher {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
   margin: 0 0 14px;
-  padding: 6px;
-  border: 1px solid #ded7cc;
+  padding: 5px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: white;
+  background: var(--white);
 }
 
 .area-switcher button {
-  padding: 9px 10px;
+  padding: 8px 10px;
   border-radius: 999px;
   background: transparent;
-  color: #171717;
-  font-size: 14px;
+  color: var(--text-sec);
+  font-size: 13.5px;
+  font-weight: 600;
+  border: 0;
+}
+
+.area-switcher button:hover {
+  background: var(--bg);
+  color: var(--navy);
 }
 
 .area-switcher button.active {
-  background: #171717;
+  background: var(--navy);
   color: white;
 }
+
+/* ── Content ──────────────────────────────── */
 
 .content {
   width: min(100%, 820px);
   margin: 0 auto;
-  padding: 18px 14px;
+  padding: 16px 14px;
 }
 
 .screen-title {
@@ -301,51 +388,56 @@ label {
 
 .screen-title h2 {
   margin: 0;
-  font-size: 28px;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--navy);
 }
 
 .screen-title p {
-  margin: 4px 0 0;
-  color: #666;
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
+
+/* ── Cards ────────────────────────────────── */
 
 .card,
 .empty {
-  background: white;
-  border: 1px solid #e5ded3;
-  border-radius: 20px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 14px;
   padding: 0;
   overflow: hidden;
 }
 
 .card-body {
-  padding: 14px 16px 10px;
+  padding: 13px 15px 9px;
 }
 
 .card h3 {
-  margin: 0 0 4px;
-  font-size: 17px;
+  margin: 0 0 3px;
+  font-size: 15.5px;
   font-weight: 700;
-  line-height: 1.35;
-  color: #171717;
+  line-height: 1.38;
+  color: var(--text);
 }
 
 .card-notes {
-  margin: 4px 0 0;
-  font-size: 13.5px;
-  color: #555;
-  line-height: 1.5;
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: var(--text-sec);
+  line-height: 1.55;
 }
 
 .card-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 4px;
   margin-top: 8px;
 }
 
@@ -355,99 +447,101 @@ label {
   gap: 3px;
   padding: 3px 8px;
   border-radius: 999px;
-  background: #f2eee7;
-  color: #555;
-  font-size: 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  font-size: 11.5px;
   font-weight: 500;
   white-space: nowrap;
 }
 
 .card-tag-label {
-  color: #999;
+  color: #93A8C0;
   font-weight: 400;
 }
 
 .card-tag.urgent {
-  background: #fff0ed;
-  color: #c0390c;
+  background: var(--tag-urgent-bg);
+  color: var(--tag-urgent-text);
 }
 
 .card-tag.project-tag {
-  background: #eff3ff;
-  color: #3452c9;
+  background: var(--tag-project-bg);
+  color: var(--tag-project-text);
 }
 
 .card-tag.scheduled-tag {
-  background: #f0faf0;
-  color: #217a2a;
+  background: var(--tag-sched-bg);
+  color: var(--tag-sched-text);
 }
 
 .card-footer {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 6px 10px 8px;
-  border-top: 1px solid #f0ebe3;
+  padding: 5px 9px 7px;
+  border-top: 1px solid var(--border-light);
+  background: var(--card-foot);
   flex-wrap: wrap;
 }
 
 .card-action {
-  padding: 5px 10px;
-  border-radius: 8px;
+  padding: 4px 9px;
+  border-radius: 7px;
   background: transparent;
-  color: #555;
-  font-size: 12.5px;
+  color: var(--text-sec);
+  font-size: 12px;
   font-weight: 600;
   border: 0;
   cursor: pointer;
+  transition: background 0.12s, color 0.12s;
 }
 
 .card-action:hover {
-  background: #f4efe7;
-  color: #171717;
+  background: var(--action-hover-bg);
+  color: var(--navy);
 }
 
 .card-action.primary {
-  color: #171717;
-  background: #f4efe7;
+  color: var(--action-primary-text);
+  background: var(--action-primary-bg);
 }
 
 .card-action.primary:hover {
-  background: #e8e0d4;
+  background: var(--action-hover-bg);
 }
 
 .card-action.danger {
-  color: #a33;
+  color: #9B2C2C;
 }
 
 .card-action.danger:hover {
-  background: #fff0ed;
-  color: #c0390c;
+  background: var(--tag-urgent-bg);
+  color: #7B2020;
 }
 
 .card-action-sep {
   width: 1px;
-  height: 14px;
-  background: #e5ded3;
+  height: 13px;
+  background: var(--border);
   margin: 0 2px;
   flex-shrink: 0;
 }
 
 .muted {
-  color: #666;
+  color: var(--text-muted);
 }
 
 .meta {
-  color: #444;
+  color: var(--text-sec);
 }
 
 .pill {
   display: inline-flex;
-  padding: 6px 10px;
+  padding: 4px 10px;
   border-radius: 999px;
-  background: #f2eee7;
-  color: #555;
-  font-size: 13px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  font-size: 12.5px;
   margin-top: 6px;
 }
 
@@ -455,38 +549,52 @@ label {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  background: #f4efe7;
-  color: #171717;
-  font-weight: 800;
+  margin-top: 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--tag-bg);
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 13px;
   text-decoration: none;
-  border: 1px solid #ded7cc;
+  border: 1px solid var(--border);
 }
 
 .empty {
-  color: #666;
+  color: var(--text-muted);
   text-align: center;
+  padding: 24px 16px;
+  font-size: 14px;
 }
+
+/* ── FAB ──────────────────────────────────── */
 
 .fab {
   position: fixed;
   right: 18px;
-  bottom: 18px;
-  width: 64px;
-  height: 64px;
+  bottom: 20px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
-  font-size: 34px;
+  font-size: 30px;
   padding: 0;
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.25);
+  background: var(--navy);
+  box-shadow: 0 6px 24px rgba(30,58,95,0.35);
   z-index: 10;
+  transition: background 0.15s, box-shadow 0.15s;
 }
+
+.fab:hover {
+  background: var(--navy-light);
+  box-shadow: 0 8px 28px rgba(30,58,95,0.45);
+}
+
+/* ── Modals ───────────────────────────────── */
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(15, 30, 50, 0.45);
   z-index: 20;
   display: flex;
   align-items: flex-end;
@@ -497,9 +605,9 @@ label {
   width: min(100%, 720px);
   max-height: 88vh;
   overflow: hidden;
-  background: #faf9f6;
-  border-radius: 28px 28px 0 0;
-  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.22);
+  background: var(--bg);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px rgba(30,58,95,0.18);
 }
 
 .modal-head {
@@ -507,37 +615,49 @@ label {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  border-bottom: 1px solid #e5ded3;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--white);
 }
 
 .modal-head h2 {
   margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--navy);
 }
 
 .modal-body {
-  padding: 16px;
+  padding: 14px;
   display: grid;
   gap: 12px;
   overflow-y: auto;
-  max-height: calc(88vh - 74px);
+  max-height: calc(88vh - 60px);
 }
 
+/* ── Process modal items ──────────────────── */
+
 .process-item {
-  background: white;
-  border: 1px solid #e5ded3;
-  border-radius: 20px;
-  padding: 14px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px;
 }
 
 .process-item h3 {
-  margin: 0 0 6px;
+  margin: 0 0 5px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--navy);
 }
 
 .process-item p {
   margin: 0;
-  color: #555;
+  color: var(--text-sec);
+  font-size: 13.5px;
 }
+
+/* ── Button rows (inside modals) ──────────── */
 
 .button-row {
   display: grid;
@@ -554,33 +674,42 @@ label {
   margin-top: 0;
 }
 
+/* ── Mini actions (project card) ──────────── */
+
 .mini-action {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  background: #f9f6f1;
-  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 9px;
   padding: 7px 10px;
   margin-top: 6px;
-  font-size: 13.5px;
-  color: #333;
+  font-size: 13px;
+  color: var(--text);
 }
 
 .mini-action button {
-  padding: 4px 9px;
-  border-radius: 7px;
-  font-size: 12px;
-  font-weight: 600;
-  background: #e8e0d4;
-  color: #444;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--action-primary-bg);
+  color: var(--navy);
   border: 0;
   flex-shrink: 0;
 }
 
+.mini-action button:hover {
+  background: var(--action-hover-bg);
+}
+
+/* ── Responsive ───────────────────────────── */
+
 @media (min-width: 760px) {
   .app-header {
-    padding: 18px 28px;
+    padding: 14px 28px;
   }
 
   .tabs {
@@ -588,7 +717,7 @@ label {
   }
 
   .bottom-sheet {
-    border-radius: 28px;
+    border-radius: 20px;
     margin-bottom: 32px;
   }
 
