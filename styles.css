@@ -276,21 +276,30 @@ label {
 .folder-habits .folder-head-sub   { color: var(--f3-ink); opacity: .6; }
 .folder-habits .folder-chevron    { color: var(--f3-ink); }
 
-.habit-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(26,46,20,.1); }
+.habit-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid rgba(26,46,20,.1); gap: 10px; }
 .habit-row:last-child { border-bottom: 0; }
-.habit-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.habit-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
 .habit-emoji { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
 .habit-name  { font-size: 13px; font-weight: 600; color: var(--f3-ink); }
 .habit-freq  { font-size: 10.5px; color: rgba(26,46,20,.5); margin-top: 1px; }
-.habit-dots  { display: flex; gap: 5px; flex-shrink: 0; }
-.habit-dot {
-  width: 26px; height: 26px; border-radius: 50%;
-  border: 1.5px solid rgba(255,255,255,.5); background: transparent;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; cursor: pointer; color: transparent;
-  transition: all .15s; flex-shrink: 0;
+
+.habit-week-progress { display: flex; gap: 4px; margin-top: 5px; }
+.habit-week-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,.35); flex-shrink: 0;
 }
-.habit-dot.done { background: rgba(255,255,255,.85); border-color: rgba(255,255,255,.85); color: var(--f3-ink); }
+.habit-week-dot.done { background: var(--f3-ink); opacity: .75; }
+.habit-week-dot.today { box-shadow: 0 0 0 1.5px rgba(26,46,20,.4); }
+
+.habit-today-check {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,.55); background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  color: transparent; cursor: pointer; transition: all .15s;
+}
+.habit-today-check.done { background: rgba(255,255,255,.85); border-color: rgba(255,255,255,.85); color: var(--f3-ink); }
+.habit-today-check:hover { border-color: rgba(255,255,255,.85); opacity: 1; }
+
 .habit-add-btn {
   display: flex; align-items: center; gap: 7px; margin-top: 10px;
   font-size: 13px; font-weight: 600; color: rgba(26,46,20,.55);
@@ -298,6 +307,24 @@ label {
   background: transparent; border: 0; width: 100%; text-align: left;
 }
 .habit-add-btn:hover { color: var(--f3-ink); opacity: 1; }
+
+/* ── Habit detail modal — week toggle grid ── */
+.habit-week-detail { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.habit-day-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 8px 0; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border-s);
+  cursor: pointer; color: var(--text-3);
+}
+.habit-day-btn:hover { background: var(--surface-2); opacity: 1; }
+.habit-day-btn.today { border-color: var(--green); }
+.habit-day-label { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--text-4); }
+.habit-day-circle {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1.5px solid var(--border-s); display: flex; align-items: center; justify-content: center;
+  color: transparent;
+}
+.habit-day-btn.done .habit-day-circle { background: var(--green-bg); border-color: var(--green-bdr); color: var(--green-text); }
 
 /* ─── Detail screens ──────────────────────── */
 .screen { padding-bottom: 120px; }

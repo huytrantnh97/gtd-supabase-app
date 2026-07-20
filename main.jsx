@@ -17,7 +17,7 @@ const CASES = [
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 /* Google Calendar OAuth — replace with your own Client ID from Google Cloud Console */
-const GOOGLE_CLIENT_ID = '294844057556-p42qhekdimblr3t33uulf2r65oj81a4v.apps.googleusercontent.com'
+const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'
 const GOOGLE_REDIRECT_URI = 'https://huytrantnh97.github.io/gtd-supabase-app/'
 const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly'
 
@@ -138,6 +138,7 @@ function GTDApp({session,onSignOut}) {
   const [editProject,setEditProject]=useState(null)
   const [editReference,setEditReference]=useState(null)
   const [addHabitOpen,setAddHabitOpen]=useState(false)
+  const [habitDetail,setHabitDetail]=useState(null)
   const focusAudioRef=useRef(null)
   function playFocusAudio() {
     const el=focusAudioRef.current
@@ -298,6 +299,7 @@ function GTDApp({session,onSignOut}) {
       user_id:user.id,name:data.name,emoji:data.emoji||'✅',
       frequency:data.frequency||'daily',
       days_of_week:data.days_of_week||null,
+      link_url:normalizeUrl(data.link_url)||null,
     })
     if(error){alert(error.message);return}
     setAddHabitOpen(false);await loadAll({quiet:true})
@@ -371,15 +373,16 @@ function GTDApp({session,onSignOut}) {
     return active[0]||null
   },[items,today])
 
-  // Last 3 days for habit tracking
-  const last3=useMemo(()=>{
+  // Last 7 days for habit week-progress view
+  const last7=useMemo(()=>{
     const days=[]
-    for(let i=2;i>=0;i--){
+    for(let i=6;i>=0;i--){
       const d=new Date(); d.setDate(d.getDate()-i)
-      days.push(d.toISOString().slice(0,10))
+      const iso=d.toISOString().slice(0,10)
+      days.push({date:iso,label:DAYS[d.getDay()],isToday:i===0})
     }
     return days
-  },[])
+  },[today])
 
   const habitsDoneToday=habits.filter(h=>habitLogs.some(l=>l.habit_id===h.id&&l.log_date===today)).length
 
@@ -520,29 +523,31 @@ function GTDApp({session,onSignOut}) {
           <FolderCard colorClass="folder-habits" icon="🔥" title="Habits"
             subtitle={`${habitsDoneToday} of ${habits.length} done today`}
             defaultOpen={true}>
-            {habits.map(habit=>(
-              <div className="habit-row" key={habit.id}>
-                <div className="habit-left">
-                  <div className="habit-emoji">{habit.emoji||'✅'}</div>
-                  <div>
-                    <div className="habit-name">{habit.name}</div>
-                    <div className="habit-freq">{habit.frequency==='daily'?'Daily':habit.frequency==='weekly'?'Weekly':'Custom'}</div>
+            {habits.map(habit=>{
+              const doneToday=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===today)
+              return (
+                <div className="habit-row" key={habit.id}>
+                  <div className="habit-left" onClick={()=>setHabitDetail(habit)}>
+                    <div className="habit-emoji">{habit.emoji||'✅'}</div>
+                    <div>
+                      <div className="habit-name">{habit.name}</div>
+                      <div className="habit-freq">{habit.frequency==='daily'?'Daily':habit.frequency==='weekly'?'Weekly':'Custom'}</div>
+                      <div className="habit-week-progress">
+                        {last7.map(d=>{
+                          const done=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===d.date)
+                          return <span key={d.date} className={`habit-week-dot${done?' done':''}${d.isToday?' today':''}`}/>
+                        })}
+                      </div>
+                    </div>
                   </div>
+                  <button className={`habit-today-check${doneToday?' done':''}`}
+                    onClick={e=>{e.stopPropagation();toggleHabitLog(habit.id,today)}}
+                    title="Today" aria-label={`Mark ${habit.name} done today`}>
+                    {doneToday&&<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </button>
                 </div>
-                <div className="habit-dots">
-                  {last3.map(date=>{
-                    const done=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===date)
-                    return (
-                      <button key={date} className={`habit-dot${done?' done':''}`}
-                        onClick={()=>toggleHabitLog(habit.id,date)}
-                        title={date} aria-label={`${habit.name} on ${date}`}>
-                        {done&&'✓'}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
+              )
+            })}
             {habits.length===0&&<div style={{fontSize:13,color:'rgba(26,46,20,.45)',textAlign:'center',padding:'10px 0'}}>No habits yet. Add one below.</div>}
             <button className="habit-add-btn" onClick={()=>setAddHabitOpen(true)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -789,6 +794,7 @@ function GTDApp({session,onSignOut}) {
       {editProject&&<EditProjectModal project={editProject} onClose={()=>setEditProject(null)} onSubmit={data=>updateProject(editProject.id,data)}/>}
       {editReference&&<EditReferenceModal reference={editReference} onClose={()=>setEditReference(null)} onSubmit={data=>updateReference(editReference.id,data)}/>}
       {addHabitOpen&&<AddHabitModal onClose={()=>setAddHabitOpen(false)} onSubmit={addHabit}/>}
+      {habitDetail&&<HabitDetailModal habit={habitDetail} logs={habitLogs} days={last7} onClose={()=>setHabitDetail(null)} onToggleDay={toggleHabitLog}/>}
     </div>
   )
 }
@@ -869,6 +875,7 @@ function AddHabitModal({onClose,onSubmit}) {
   const [name,setName]=useState('')
   const [emoji,setEmoji]=useState('✅')
   const [frequency,setFrequency]=useState('daily')
+  const [linkUrl,setLinkUrl]=useState('')
   return (
     <Modal title="🔥 New habit" onClose={onClose}>
       <Fld label="Habit name *"><input autoFocus placeholder="e.g. Workout, Read, Meditate..." value={name} onChange={e=>setName(e.target.value)}/></Fld>
@@ -879,7 +886,34 @@ function AddHabitModal({onClose,onSubmit}) {
           <option value="weekly">Weekly</option>
         </select>
       </Fld>
-      <button disabled={!name.trim()} onClick={()=>onSubmit({name:name.trim(),emoji,frequency})}>Add habit</button>
+      <Fld label="Link"><input placeholder="https://... (e.g. workout plan, playlist)" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/></Fld>
+      <button disabled={!name.trim()} onClick={()=>onSubmit({name:name.trim(),emoji,frequency,link_url:linkUrl})}>Add habit</button>
+    </Modal>
+  )
+}
+
+function HabitDetailModal({habit,logs,days,onClose,onToggleDay}) {
+  return (
+    <Modal title={`${habit.emoji||'✅'} ${habit.name}`} onClose={onClose}>
+      <div className="process-item">
+        <p>{habit.frequency==='daily'?'Daily habit':habit.frequency==='weekly'?'Weekly habit':'Custom habit'}</p>
+      </div>
+      {habit.link_url&&(
+        <a className="link-button" href={normalizeUrl(habit.link_url)} target="_blank" rel="noreferrer">🔗 Open link</a>
+      )}
+      <p className="section-label">This week — tap a day to toggle</p>
+      <div className="habit-week-detail">
+        {days.map(d=>{
+          const done=logs.some(l=>l.habit_id===habit.id&&l.log_date===d.date)
+          return (
+            <button key={d.date} className={`habit-day-btn${done?' done':''}${d.isToday?' today':''}`}
+              onClick={()=>onToggleDay(habit.id,d.date)}>
+              <span className="habit-day-label">{d.label}</span>
+              <span className="habit-day-circle">{done&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>}</span>
+            </button>
+          )
+        })}
+      </div>
     </Modal>
   )
 }
