@@ -231,7 +231,15 @@ label {
 .ev-name { font-size: 13px; font-weight: 600; color: var(--f1-ink); line-height: 1.35; }
 .ev-cal  { font-size: 11px; color: rgba(26,16,53,.45); margin-top: 1px; }
 .ev-note { font-size: 11px; color: rgba(26,16,53,.4); margin-top: 10px; display: flex; align-items: center; gap: 5px; }
+.ev-note:hover { color: rgba(26,16,53,.65); }
 .ev-empty { font-size: 13px; color: rgba(26,16,53,.45); text-align: center; padding: 12px 0; }
+.ev-connect-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px; margin-top: 4px; border-radius: var(--radius);
+  background: rgba(255,255,255,.55); color: var(--f1-ink);
+  border: 0; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.ev-connect-btn:hover { background: rgba(255,255,255,.75); opacity: 1; }
 
 /* ── Focus folder ── */
 .folder-focus { background: var(--f2-bg); }
@@ -286,7 +294,7 @@ label {
   padding: 14px 14px 0;
 }
 .screen-back {
-  width: 34px; height: 34px; border-radius: var(--radius-s);
+  width: 34px; height: 34px; padding: 0; border-radius: var(--radius-s);
   border: 1px solid var(--border-s); background: var(--surface);
   color: var(--text-3); display: flex; align-items: center; justify-content: center;
   cursor: pointer; font-size: 18px; flex-shrink: 0;
@@ -410,7 +418,7 @@ label {
 }
 .modal-head h2 { font-size: 15px; font-weight: 700; color: var(--text); }
 .modal-close {
-  width: 28px; height: 28px; border-radius: var(--radius-s);
+  width: 28px; height: 28px; padding: 0; border-radius: var(--radius-s);
   border: 1px solid var(--border-s); background: var(--surface-2); color: var(--text-3);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; font-size: 15px; line-height: 1; flex-shrink: 0;

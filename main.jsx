@@ -16,6 +16,23 @@ const CASES = [
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
+/* Google Calendar OAuth — replace with your own Client ID from Google Cloud Console */
+const GOOGLE_CLIENT_ID = '294844057556-p42qhekdimblr3t33uulf2r65oj81a4v.apps.googleusercontent.com'
+const GOOGLE_REDIRECT_URI = 'https://huytrantnh97.github.io/gtd-supabase-app/'
+const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly'
+
+function buildGoogleAuthUrl() {
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_REDIRECT_URI,
+    response_type: 'code',
+    scope: GOOGLE_SCOPE,
+    access_type: 'offline',
+    prompt: 'consent',
+  })
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+}
+
 /* ─── Helpers ─────────────────────────────────── */
 function todayISO()  { return new Date().toISOString().slice(0,10) }
 function nowISO()    { return new Date().toISOString() }
@@ -117,6 +134,9 @@ function GTDApp({session,onSignOut}) {
   const [editReference,setEditReference]=useState(null)
   const [addHabitOpen,setAddHabitOpen]=useState(false)
   const [focusItem,setFocusItem]=useState(null)
+  const [calendarEvents,setCalendarEvents]=useState([])
+  const [calendarConnected,setCalendarConnected]=useState(false)
+  const [calendarLoading,setCalendarLoading]=useState(true)
 
   async function loadAll({quiet=false}={}) {
     if(!quiet)setLoading(true)
@@ -136,7 +156,38 @@ function GTDApp({session,onSignOut}) {
     setLoading(false);setRefreshing(false)
   }
 
-  useEffect(()=>{loadAll()},[])
+  useEffect(()=>{loadAll();handleGoogleOAuthRedirect()},[])
+
+  async function loadCalendarEvents() {
+    setCalendarLoading(true)
+    try {
+      const {data,error}=await supabase.functions.invoke('google-calendar-events')
+      if(error){setCalendarConnected(false);setCalendarEvents([]);setCalendarLoading(false);return}
+      setCalendarConnected(!!data.connected)
+      setCalendarEvents(data.events||[])
+    } catch(e) {
+      setCalendarConnected(false);setCalendarEvents([])
+    }
+    setCalendarLoading(false)
+  }
+
+  async function handleGoogleOAuthRedirect() {
+    const params=new URLSearchParams(window.location.search)
+    const code=params.get('code')
+    if(!code){await loadCalendarEvents();return}
+    window.history.replaceState({},'',window.location.pathname)
+    setCalendarLoading(true)
+    const {data,error}=await supabase.functions.invoke('google-oauth-exchange',{body:{code}})
+    if(error||data?.error){alert('Failed to connect Google Calendar: '+(data?.error||error?.message||'Unknown error'))}
+    await loadCalendarEvents()
+  }
+
+  async function disconnectGoogleCalendar() {
+    if(!window.confirm('Disconnect Google Calendar?'))return
+    const {error}=await supabase.from('google_tokens').delete().eq('user_id',user.id)
+    if(error){alert(error.message);return}
+    setCalendarConnected(false);setCalendarEvents([])
+  }
 
   async function createInboxItem({title,notes,source,linkUrl}) {
     const {error}=await supabase.from('items').insert({
@@ -394,12 +445,35 @@ function GTDApp({session,onSignOut}) {
 
           {/* Events folder */}
           <FolderCard colorClass="folder-events" icon="🗓" title="Next events"
-            subtitle="Google Calendar · read-only" defaultOpen={true}>
-            <div className="ev-empty">Connect Google Calendar to see events here.</div>
-            <div className="ev-note">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              Tap to connect Google Calendar
-            </div>
+            subtitle={calendarLoading?'Loading...':calendarConnected?`${calendarEvents.length} events today`:'Not connected'}
+            defaultOpen={true}>
+            {calendarLoading?(
+              <div className="ev-empty">Loading events...</div>
+            ):!calendarConnected?(
+              <>
+                <div className="ev-empty">Connect your Google Calendar to see today's events here.</div>
+                <button className="ev-connect-btn" onClick={()=>window.location.href=buildGoogleAuthUrl()}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  Connect Google Calendar
+                </button>
+              </>
+            ):calendarEvents.length===0?(
+              <div className="ev-empty">No events today.</div>
+            ):(
+              calendarEvents.map(ev=>(
+                <div className="ev-row" key={ev.id}>
+                  <div className="ev-time">{ev.allDay?'All day':new Date(ev.start).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+                  <div className="ev-dot" style={{background:'#6C4FC4'}}></div>
+                  <div><div className="ev-name">{ev.title}</div><div className="ev-cal">Google Calendar</div></div>
+                </div>
+              ))
+            )}
+            {calendarConnected&&(
+              <div className="ev-note" style={{cursor:'pointer'}} onClick={disconnectGoogleCalendar}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Disconnect Google Calendar
+              </div>
+            )}
           </FolderCard>
 
           {/* Focus task folder */}
