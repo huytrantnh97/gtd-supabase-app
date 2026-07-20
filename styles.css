@@ -259,6 +259,15 @@ label {
 .focus-task-title { font-size: 16px; font-weight: 700; color: var(--f2-ink); line-height: 1.35; letter-spacing: -.01em; }
 .focus-tags { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
 .focus-tag  { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,.35); color: var(--f2-ink); font-weight: 600; }
+.focus-actions { display: flex; gap: 8px; margin-top: 8px; }
+.focus-action-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 10px; border-radius: var(--radius);
+  background: rgba(255,255,255,.35); color: var(--f2-ink);
+  border: 0; font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.focus-action-btn:hover { background: rgba(255,255,255,.5); opacity: 1; }
+.focus-action-btn:active { transform: scale(.97); }
 .focus-empty { font-size: 13px; color: rgba(61,38,0,.5); text-align: center; padding: 12px 0; }
 
 /* ── Habits folder ── */

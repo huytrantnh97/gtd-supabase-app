@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import ReactDOM from 'react-dom/client'
 import { supabase } from './lib/supabaseClient'
 import './styles.css'
@@ -20,6 +20,11 @@ const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 const GOOGLE_CLIENT_ID = '294844057556-p42qhekdimblr3t33uulf2r65oj81a4v.apps.googleusercontent.com'
 const GOOGLE_REDIRECT_URI = 'https://huytrantnh97.github.io/gtd-supabase-app/'
 const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly'
+
+/* Audio played by the "Play audio" button on the Focus task card.
+   Replace with the path/URL to your own file, e.g. './focus-bell.mp3'
+   after adding it to your GitHub repo. */
+const FOCUS_AUDIO_URL = './focus-bell.mp3'
 
 function buildGoogleAuthUrl() {
   const params = new URLSearchParams({
@@ -133,6 +138,13 @@ function GTDApp({session,onSignOut}) {
   const [editProject,setEditProject]=useState(null)
   const [editReference,setEditReference]=useState(null)
   const [addHabitOpen,setAddHabitOpen]=useState(false)
+  const focusAudioRef=useRef(null)
+  function playFocusAudio() {
+    const el=focusAudioRef.current
+    if(!el)return
+    el.currentTime=0
+    el.play().catch(()=>{alert('Could not play the audio file. Make sure FOCUS_AUDIO_URL points to a valid file in your repo.')})
+  }
   const [calendarEvents,setCalendarEvents]=useState([])
   const [calendarConnected,setCalendarConnected]=useState(false)
   const [calendarLoading,setCalendarLoading]=useState(true)
@@ -477,19 +489,32 @@ function GTDApp({session,onSignOut}) {
           <FolderCard colorClass="folder-focus" icon="🎯" title="Focus task"
             expandable={false} onClick={()=>navigateTo('today')}>
             {focusTask?(
-              <div className="focus-inner">
-                <div className="focus-eyebrow">⭐ Priority #1</div>
-                <div className="focus-task-title">{focusTask.title}</div>
-                <div className="focus-tags">
-                  {focusTask.due_date&&<span className="focus-tag">📅 {focusTask.due_date===today?'Due today':focusTask.due_date}</span>}
-                  {projectById[focusTask.project_id]&&<span className="focus-tag">📁 {projectById[focusTask.project_id].name}</span>}
-                  {focusTask.area_type&&<span className="focus-tag">{focusTask.area_type}</span>}
+              <>
+                <div className="focus-inner" onClick={e=>{e.stopPropagation();setEditItem(focusTask)}}>
+                  <div className="focus-eyebrow">⭐ Priority #1</div>
+                  <div className="focus-task-title">{focusTask.title}</div>
+                  <div className="focus-tags">
+                    {focusTask.due_date&&<span className="focus-tag">📅 {focusTask.due_date===today?'Due today':focusTask.due_date}</span>}
+                    {projectById[focusTask.project_id]&&<span className="focus-tag">📁 {projectById[focusTask.project_id].name}</span>}
+                    {focusTask.area_type&&<span className="focus-tag">{focusTask.area_type}</span>}
+                  </div>
                 </div>
-              </div>
+                <div className="focus-actions">
+                  <button className="focus-action-btn" onClick={e=>{e.stopPropagation();completeItem(focusTask)}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                    Mark done
+                  </button>
+                  <button className="focus-action-btn" onClick={e=>{e.stopPropagation();playFocusAudio()}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Play audio
+                  </button>
+                </div>
+              </>
             ):(
               <div className="focus-empty">No urgent tasks right now. 🎉</div>
             )}
           </FolderCard>
+          <audio ref={focusAudioRef} src={FOCUS_AUDIO_URL} preload="none"/>
 
           {/* Habits folder */}
           <FolderCard colorClass="folder-habits" icon="🔥" title="Habits"
@@ -773,8 +798,7 @@ function FolderCard({colorClass,icon,title,subtitle,defaultOpen=false,expandable
   const [open,setOpen]=useState(defaultOpen)
   if(!expandable) {
     return (
-      <div className={`folder-card ${colorClass} folder-card-clickable`} onClick={onClick} role="button" tabIndex={0}
-        onKeyDown={e=>{if(e.key==='Enter'||e.key===' ')onClick?.()}}>
+      <div className={`folder-card ${colorClass} folder-card-clickable`} onClick={onClick}>
         <div className="folder-head">
           <div className="folder-head-left">
             <div className="folder-head-icon">{icon}</div>
