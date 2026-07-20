@@ -268,6 +268,7 @@ label {
 }
 .focus-action-btn:hover { background: rgba(255,255,255,.5); opacity: 1; }
 .focus-action-btn:active { transform: scale(.97); }
+.focus-action-btn.playing { background: rgba(255,255,255,.6); }
 .focus-empty { font-size: 13px; color: rgba(61,38,0,.5); text-align: center; padding: 12px 0; }
 
 /* ── Habits folder ── */
@@ -325,6 +326,8 @@ label {
   color: transparent;
 }
 .habit-day-btn.done .habit-day-circle { background: var(--green-bg); border-color: var(--green-bdr); color: var(--green-text); }
+.habit-day-btn.future { opacity: .4; cursor: not-allowed; }
+.habit-day-btn:disabled { pointer-events: none; }
 
 /* ─── Detail screens ──────────────────────── */
 .screen { padding-bottom: 120px; }

@@ -17,11 +17,11 @@ const CASES = [
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 /* Google Calendar OAuth — replace with your own Client ID from Google Cloud Console */
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'
+const GOOGLE_CLIENT_ID = '294844057556-p42qhekdimblr3t33uulf2r65oj81a4v.apps.googleusercontent.com'
 const GOOGLE_REDIRECT_URI = 'https://huytrantnh97.github.io/gtd-supabase-app/'
 const GOOGLE_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly'
 
-/* Audio played by the "Play audio" button on the Focus task card.
+/* Music played by the "Play Focus Music" button on the Focus task card.
    Replace with the path/URL to your own file, e.g. './focus-bell.mp3'
    after adding it to your GitHub repo. */
 const FOCUS_AUDIO_URL = './focus-bell.mp3'
@@ -51,6 +51,14 @@ function normalizeUrl(url) {
   return c.startsWith('http://')||c.startsWith('https://')?c:`https://${c}`
 }
 function matchesArea(rec,f) { return f==='All'||rec.area_type===f }
+function mondayOfWeek(date=new Date()) {
+  const d=new Date(date)
+  const day=d.getDay() // 0=Sun..6=Sat
+  const diff=day===0?-6:1-day
+  d.setDate(d.getDate()+diff)
+  d.setHours(0,0,0,0)
+  return d
+}
 function parseEmailList(v) {
   return (v||'').split(/[;,\n]/).map(e=>e.trim().toLowerCase()).filter(Boolean)
     .filter((e,i,a)=>a.indexOf(e)===i)
@@ -140,11 +148,16 @@ function GTDApp({session,onSignOut}) {
   const [addHabitOpen,setAddHabitOpen]=useState(false)
   const [habitDetail,setHabitDetail]=useState(null)
   const focusAudioRef=useRef(null)
-  function playFocusAudio() {
+  const [focusPlaying,setFocusPlaying]=useState(false)
+  function toggleFocusAudio() {
     const el=focusAudioRef.current
     if(!el)return
-    el.currentTime=0
-    el.play().catch(()=>{alert('Could not play the audio file. Make sure FOCUS_AUDIO_URL points to a valid file in your repo.')})
+    if(focusPlaying){
+      el.pause()
+      setFocusPlaying(false)
+    } else {
+      el.play().then(()=>setFocusPlaying(true)).catch(()=>{alert('Could not play the audio file. Make sure FOCUS_AUDIO_URL points to a valid file in your repo.')})
+    }
   }
   const [calendarEvents,setCalendarEvents]=useState([])
   const [calendarConnected,setCalendarConnected]=useState(false)
@@ -158,7 +171,7 @@ function GTDApp({session,onSignOut}) {
       supabase.from('projects').select('*').order('created_at',{ascending:true}),
       supabase.from('references').select('*').order('created_at',{ascending:true}),
       supabase.from('habits').select('*').eq('user_id',user.id).order('created_at',{ascending:true}),
-      supabase.from('habit_logs').select('*').eq('user_id',user.id).gte('log_date',new Date(Date.now()-7*86400000).toISOString().slice(0,10)),
+      supabase.from('habit_logs').select('*').eq('user_id',user.id).gte('log_date',mondayOfWeek().toISOString().slice(0,10)),
     ])
     const err=ir.error||pr.error||rr.error
     if(err){setNotice(err.message);alert(err.message)}
@@ -305,6 +318,15 @@ function GTDApp({session,onSignOut}) {
     setAddHabitOpen(false);await loadAll({quiet:true})
   }
 
+  async function updateHabit(id,data) {
+    const {error}=await supabase.from('habits').update({
+      frequency:data.frequency||'daily',
+      link_url:normalizeUrl(data.link_url)||null,
+    }).eq('id',id)
+    if(error){alert(error.message);return}
+    setHabitDetail(null);await loadAll({quiet:true})
+  }
+
   async function toggleHabitLog(habitId,date) {
     const existing=habitLogs.find(l=>l.habit_id===habitId&&l.log_date===date)
     if(existing){
@@ -373,13 +395,14 @@ function GTDApp({session,onSignOut}) {
     return active[0]||null
   },[items,today])
 
-  // Last 7 days for habit week-progress view
+  // Current week Monday → Sunday for habit tracking
   const last7=useMemo(()=>{
+    const monday=mondayOfWeek()
     const days=[]
-    for(let i=6;i>=0;i--){
-      const d=new Date(); d.setDate(d.getDate()-i)
+    for(let i=0;i<7;i++){
+      const d=new Date(monday); d.setDate(d.getDate()+i)
       const iso=d.toISOString().slice(0,10)
-      days.push({date:iso,label:DAYS[d.getDay()],isToday:i===0})
+      days.push({date:iso,label:DAYS[d.getDay()],isToday:iso===today})
     }
     return days
   },[today])
@@ -507,9 +530,13 @@ function GTDApp({session,onSignOut}) {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                     Mark done
                   </button>
-                  <button className="focus-action-btn" onClick={e=>{e.stopPropagation();playFocusAudio()}}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    Play audio
+                  <button className={`focus-action-btn${focusPlaying?' playing':''}`} onClick={e=>{e.stopPropagation();toggleFocusAudio()}}>
+                    {focusPlaying?(
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                    ):(
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    )}
+                    {focusPlaying?'Pause Focus Music':'Play Focus Music'}
                   </button>
                 </div>
               </>
@@ -517,7 +544,7 @@ function GTDApp({session,onSignOut}) {
               <div className="focus-empty">No urgent tasks right now. 🎉</div>
             )}
           </FolderCard>
-          <audio ref={focusAudioRef} src={FOCUS_AUDIO_URL} preload="none"/>
+          <audio ref={focusAudioRef} src={FOCUS_AUDIO_URL} preload="none" onEnded={()=>setFocusPlaying(false)}/>
 
           {/* Habits folder */}
           <FolderCard colorClass="folder-habits" icon="🔥" title="Habits"
@@ -794,7 +821,7 @@ function GTDApp({session,onSignOut}) {
       {editProject&&<EditProjectModal project={editProject} onClose={()=>setEditProject(null)} onSubmit={data=>updateProject(editProject.id,data)}/>}
       {editReference&&<EditReferenceModal reference={editReference} onClose={()=>setEditReference(null)} onSubmit={data=>updateReference(editReference.id,data)}/>}
       {addHabitOpen&&<AddHabitModal onClose={()=>setAddHabitOpen(false)} onSubmit={addHabit}/>}
-      {habitDetail&&<HabitDetailModal habit={habitDetail} logs={habitLogs} days={last7} onClose={()=>setHabitDetail(null)} onToggleDay={toggleHabitLog}/>}
+      {habitDetail&&<HabitDetailModal habit={habitDetail} logs={habitLogs} days={last7} today={today} onClose={()=>setHabitDetail(null)} onToggleDay={toggleHabitLog} onUpdate={updateHabit}/>}
     </div>
   )
 }
@@ -892,12 +919,19 @@ function AddHabitModal({onClose,onSubmit}) {
   )
 }
 
-function HabitDetailModal({habit,logs,days,onClose,onToggleDay}) {
+function HabitDetailModal({habit,logs,days,today,onClose,onToggleDay,onUpdate}) {
+  const [frequency,setFrequency]=useState(habit.frequency||'daily')
+  const [linkUrl,setLinkUrl]=useState(habit.link_url||'')
+  const [saving,setSaving]=useState(false)
+
+  async function save() {
+    setSaving(true)
+    await onUpdate(habit.id,{frequency,link_url:linkUrl})
+    setSaving(false)
+  }
+
   return (
     <Modal title={`${habit.emoji||'✅'} ${habit.name}`} onClose={onClose}>
-      <div className="process-item">
-        <p>{habit.frequency==='daily'?'Daily habit':habit.frequency==='weekly'?'Weekly habit':'Custom habit'}</p>
-      </div>
       {habit.link_url&&(
         <a className="link-button" href={normalizeUrl(habit.link_url)} target="_blank" rel="noreferrer">🔗 Open link</a>
       )}
@@ -905,8 +939,10 @@ function HabitDetailModal({habit,logs,days,onClose,onToggleDay}) {
       <div className="habit-week-detail">
         {days.map(d=>{
           const done=logs.some(l=>l.habit_id===habit.id&&l.log_date===d.date)
+          const future=d.date>today
           return (
-            <button key={d.date} className={`habit-day-btn${done?' done':''}${d.isToday?' today':''}`}
+            <button key={d.date} disabled={future}
+              className={`habit-day-btn${done?' done':''}${d.isToday?' today':''}${future?' future':''}`}
               onClick={()=>onToggleDay(habit.id,d.date)}>
               <span className="habit-day-label">{d.label}</span>
               <span className="habit-day-circle">{done&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>}</span>
@@ -914,6 +950,16 @@ function HabitDetailModal({habit,logs,days,onClose,onToggleDay}) {
           )
         })}
       </div>
+
+      <p className="section-label">Edit habit</p>
+      <Fld label="Frequency">
+        <select value={frequency} onChange={e=>setFrequency(e.target.value)}>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </Fld>
+      <Fld label="Link"><input placeholder="https://..." value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/></Fld>
+      <button disabled={saving} onClick={save}>{saving?'Saving...':'Save changes'}</button>
     </Modal>
   )
 }
