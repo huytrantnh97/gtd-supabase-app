@@ -39,7 +39,13 @@ function buildGoogleAuthUrl() {
 }
 
 /* ─── Helpers ─────────────────────────────────── */
-function todayISO()  { return new Date().toISOString().slice(0,10) }
+function localISODate(d=new Date()) {
+  const yr=d.getFullYear()
+  const mo=String(d.getMonth()+1).padStart(2,'0')
+  const da=String(d.getDate()).padStart(2,'0')
+  return `${yr}-${mo}-${da}`
+}
+function todayISO()  { return localISODate() }
 function nowISO()    { return new Date().toISOString() }
 function toScheduledAt(d,t) { if(!d) return null; return t?`${d}T${t}:00`:`${d}T00:00:00` }
 function datePart(v) { return v?v.slice(0,10):'' }
@@ -171,7 +177,7 @@ function GTDApp({session,onSignOut}) {
       supabase.from('projects').select('*').order('created_at',{ascending:true}),
       supabase.from('references').select('*').order('created_at',{ascending:true}),
       supabase.from('habits').select('*').eq('user_id',user.id).order('created_at',{ascending:true}),
-      supabase.from('habit_logs').select('*').eq('user_id',user.id).gte('log_date',mondayOfWeek().toISOString().slice(0,10)),
+      supabase.from('habit_logs').select('*').eq('user_id',user.id).gte('log_date',localISODate(mondayOfWeek())),
     ])
     const err=ir.error||pr.error||rr.error
     if(err){setNotice(err.message);alert(err.message)}
@@ -401,7 +407,7 @@ function GTDApp({session,onSignOut}) {
     const days=[]
     for(let i=0;i<7;i++){
       const d=new Date(monday); d.setDate(d.getDate()+i)
-      const iso=d.toISOString().slice(0,10)
+      const iso=localISODate(d)
       days.push({date:iso,label:DAYS[d.getDay()],isToday:iso===today})
     }
     return days
