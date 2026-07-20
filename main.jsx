@@ -133,7 +133,6 @@ function GTDApp({session,onSignOut}) {
   const [editProject,setEditProject]=useState(null)
   const [editReference,setEditReference]=useState(null)
   const [addHabitOpen,setAddHabitOpen]=useState(false)
-  const [focusItem,setFocusItem]=useState(null)
   const [calendarEvents,setCalendarEvents]=useState([])
   const [calendarConnected,setCalendarConnected]=useState(false)
   const [calendarLoading,setCalendarLoading]=useState(true)
@@ -415,9 +414,7 @@ function GTDApp({session,onSignOut}) {
       {!loading&&screen==='home'&&(
         <div className="home">
           <div className="home-greeting">
-            <div className="home-eyebrow">{greetingWord()}</div>
-            <div className="home-name">{firstName(user.email)}</div>
-            <div className="home-date">{new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+            <div className="home-date-solo">{new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
           </div>
 
           {/* Summary folder */}
@@ -478,10 +475,9 @@ function GTDApp({session,onSignOut}) {
 
           {/* Focus task folder */}
           <FolderCard colorClass="folder-focus" icon="🎯" title="Focus task"
-            subtitle={focusTask?focusTask.title.slice(0,40)+'…':'Nothing due right now'}
-            defaultOpen={true}>
+            expandable={false} onClick={()=>navigateTo('today')}>
             {focusTask?(
-              <div className="focus-inner" onClick={()=>setFocusItem(focusTask)}>
+              <div className="focus-inner">
                 <div className="focus-eyebrow">⭐ Priority #1</div>
                 <div className="focus-task-title">{focusTask.title}</div>
                 <div className="focus-tags">
@@ -768,14 +764,30 @@ function GTDApp({session,onSignOut}) {
       {editProject&&<EditProjectModal project={editProject} onClose={()=>setEditProject(null)} onSubmit={data=>updateProject(editProject.id,data)}/>}
       {editReference&&<EditReferenceModal reference={editReference} onClose={()=>setEditReference(null)} onSubmit={data=>updateReference(editReference.id,data)}/>}
       {addHabitOpen&&<AddHabitModal onClose={()=>setAddHabitOpen(false)} onSubmit={addHabit}/>}
-      {focusItem&&<FocusDetailModal item={focusItem} project={projectById[focusItem.project_id]} onClose={()=>setFocusItem(null)} onComplete={async()=>{await completeItem(focusItem);setFocusItem(null)}} onEdit={()=>{setEditItem(focusItem);setFocusItem(null)}}/>}
     </div>
   )
 }
 
 /* ─── Folder Card Component ──────────────────── */
-function FolderCard({colorClass,icon,title,subtitle,defaultOpen=false,children}) {
+function FolderCard({colorClass,icon,title,subtitle,defaultOpen=false,expandable=true,onClick,children}) {
   const [open,setOpen]=useState(defaultOpen)
+  if(!expandable) {
+    return (
+      <div className={`folder-card ${colorClass} folder-card-clickable`} onClick={onClick} role="button" tabIndex={0}
+        onKeyDown={e=>{if(e.key==='Enter'||e.key===' ')onClick?.()}}>
+        <div className="folder-head">
+          <div className="folder-head-left">
+            <div className="folder-head-icon">{icon}</div>
+            <div>
+              <div className="folder-head-title">{title}</div>
+              {subtitle&&<div className="folder-head-sub">{subtitle}</div>}
+            </div>
+          </div>
+        </div>
+        {children&&<><div className="folder-divider"/><div className="folder-body open">{children}</div></>}
+      </div>
+    )
+  }
   return (
     <div className={`folder-card ${colorClass}`}>
       <div className="folder-head" onClick={()=>setOpen(o=>!o)}>
@@ -825,25 +837,6 @@ function CaptureModal({onClose,onSubmit}) {
       <Fld label="Source"><input placeholder="Email, meeting, idea..." value={source} onChange={e=>setSource(e.target.value)}/></Fld>
       <Fld label="Link"><input placeholder="https://..." value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/></Fld>
       <button disabled={!title.trim()} onClick={()=>onSubmit({title:title.trim(),notes,source,linkUrl})}>Save to Inbox</button>
-    </Modal>
-  )
-}
-
-function FocusDetailModal({item,project,onClose,onComplete,onEdit}) {
-  return (
-    <Modal title="🎯 Focus task" onClose={onClose}>
-      <div className="process-item">
-        <h3>{item.title}</h3>
-        {item.notes&&<p>{item.notes}</p>}
-      </div>
-      {item.due_date&&<p style={{fontSize:13,color:'var(--red-text)'}}>📅 Due: {item.due_date}</p>}
-      {project&&<p style={{fontSize:13,color:'var(--blue-text)'}}>📁 {project.name}</p>}
-      {item.context&&<p style={{fontSize:13,color:'var(--text-3)'}}>@ {item.context}</p>}
-      {item.link_url&&<a className="link-button" href={normalizeUrl(item.link_url)} target="_blank" rel="noreferrer">🔗 Open link</a>}
-      <div className="button-row two">
-        <button onClick={onComplete}>✓ Mark done</button>
-        <button className="secondary" onClick={onEdit}>Edit</button>
-      </div>
     </Modal>
   )
 }

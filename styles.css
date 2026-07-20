@@ -173,10 +173,8 @@ label {
 /* ─── Home screen ──────────────────────────── */
 .home { padding: 0 14px 120px; }
 
-.home-greeting { padding: 20px 0 18px; }
-.home-eyebrow  { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-4); margin-bottom: 4px; }
-.home-name     { font-size: 32px; font-weight: 800; color: var(--text); letter-spacing: -.03em; line-height: 1.1; }
-.home-date     { font-size: 13px; color: var(--text-3); margin-top: 4px; }
+.home-greeting { padding: 22px 0 18px; }
+.home-date-solo { font-size: 24px; font-weight: 700; color: var(--text); letter-spacing: -.02em; line-height: 1.25; }
 
 /* folder card */
 .folder-card { border-radius: var(--radius-card); overflow: hidden; margin-bottom: 10px; }
@@ -199,6 +197,11 @@ label {
 .folder-divider { height: 1px; opacity: .1; background: currentColor; margin: 0 16px; }
 .folder-body { padding: 0 14px 14px; display: none; }
 .folder-body.open { display: block; padding-top: 12px; }
+
+.folder-card-clickable { cursor: pointer; transition: transform .1s, filter .1s; }
+.folder-card-clickable:hover { filter: brightness(1.03); }
+.folder-card-clickable:active { transform: scale(.985); }
+.folder-card-clickable .folder-head { cursor: pointer; }
 
 /* ── Summary folder ── */
 .folder-summary { background: var(--f0-bg); color: #fff; }
@@ -448,7 +451,7 @@ label {
 @media (min-width: 640px) {
   .app-header { padding: 0 24px; }
   .home { padding: 0 24px 120px; }
-  .home-name { font-size: 38px; }
+  .home-date-solo { font-size: 30px; }
   .bottom-sheet { border-radius: var(--radius-xl); margin-bottom: 24px; }
 }
 @media (min-width: 1024px) {
