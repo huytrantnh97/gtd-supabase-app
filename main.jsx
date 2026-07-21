@@ -65,6 +65,69 @@ function mondayOfWeek(date=new Date()) {
   d.setHours(0,0,0,0)
   return d
 }
+function firstOfMonth(date=new Date()) {
+  const d=new Date(date)
+  d.setDate(1); d.setHours(0,0,0,0)
+  return d
+}
+function daysBetween(aISO,bISO) {
+  const a=new Date(aISO+'T00:00:00'), b=new Date(bISO+'T00:00:00')
+  return Math.round((b-a)/86400000)
+}
+
+/* Human-readable summary of a habit's schedule */
+function habitFrequencyLabel(habit) {
+  const t=habit.frequency_type||'daily'
+  if(t==='daily')return 'Every day'
+  if(t==='every_n_days')return `Every ${habit.interval_days||2} days`
+  if(t==='weekly_days'){
+    const dows=(habit.days_of_week||[]).slice().sort((a,b)=>(a===0?7:a)-(b===0?7:b))
+    if(dows.length===0)return 'Specific days'
+    if(dows.length===7)return 'Every day'
+    return dows.map(d=>DAYS[d]).join(', ')
+  }
+  if(t==='monthly_day')return `Monthly on day ${habit.day_of_month||1}`
+  if(t==='times_per_week')return `${habit.target_count||1}× per week`
+  if(t==='times_per_month')return `${habit.target_count||1}× per month`
+  return 'Custom'
+}
+
+/* Whether a calendar-style habit applies on a given date (not used for count-based types) */
+function isHabitDueOnDate(habit,dateISO) {
+  const t=habit.frequency_type||'daily'
+  if(t==='daily')return true
+  if(t==='every_n_days'){
+    const n=habit.interval_days||2
+    const anchor=(habit.created_at||dateISO).slice(0,10)
+    const diff=daysBetween(anchor,dateISO)
+    return diff>=0&&diff%n===0
+  }
+  if(t==='weekly_days'){
+    const dow=new Date(dateISO+'T00:00:00').getDay()
+    return (habit.days_of_week||[]).includes(dow)
+  }
+  if(t==='monthly_day'){
+    const dom=new Date(dateISO+'T00:00:00').getDate()
+    return dom===(habit.day_of_month||1)
+  }
+  return true // count-based types: treat every day as potentially loggable
+}
+
+/* Count logs for a count-based habit within its current period (week or month) */
+function habitPeriodCount(habit,logs,todayISO_) {
+  const t=habit.frequency_type
+  const start=t==='times_per_month'?localISODate(firstOfMonth()):localISODate(mondayOfWeek())
+  return logs.filter(l=>l.habit_id===habit.id&&l.log_date>=start&&l.log_date<=todayISO_).length
+}
+
+/* Does this habit need attention today? */
+function isHabitDueToday(habit,todayISO_,logs) {
+  const t=habit.frequency_type||'daily'
+  if(t==='times_per_week'||t==='times_per_month'){
+    return habitPeriodCount(habit,logs,todayISO_) < (habit.target_count||1)
+  }
+  return isHabitDueOnDate(habit,todayISO_)
+}
 function parseEmailList(v) {
   return (v||'').split(/[;,\n]/).map(e=>e.trim().toLowerCase()).filter(Boolean)
     .filter((e,i,a)=>a.indexOf(e)===i)
@@ -177,7 +240,9 @@ function GTDApp({session,onSignOut}) {
       supabase.from('projects').select('*').order('created_at',{ascending:true}),
       supabase.from('references').select('*').order('created_at',{ascending:true}),
       supabase.from('habits').select('*').eq('user_id',user.id).order('created_at',{ascending:true}),
-      supabase.from('habit_logs').select('*').eq('user_id',user.id).gte('log_date',localISODate(mondayOfWeek())),
+      supabase.from('habit_logs').select('*').eq('user_id',user.id).gte('log_date',
+        (()=>{const w=localISODate(mondayOfWeek()),m=localISODate(firstOfMonth());return w<m?w:m})()
+      ),
     ])
     const err=ir.error||pr.error||rr.error
     if(err){setNotice(err.message);alert(err.message)}
@@ -316,8 +381,11 @@ function GTDApp({session,onSignOut}) {
   async function addHabit(data) {
     const {error}=await supabase.from('habits').insert({
       user_id:user.id,name:data.name,emoji:data.emoji||'✅',
-      frequency:data.frequency||'daily',
+      frequency_type:data.frequency_type||'daily',
+      interval_days:data.interval_days||null,
       days_of_week:data.days_of_week||null,
+      day_of_month:data.day_of_month||null,
+      target_count:data.target_count||null,
       link_url:normalizeUrl(data.link_url)||null,
     })
     if(error){alert(error.message);return}
@@ -326,7 +394,11 @@ function GTDApp({session,onSignOut}) {
 
   async function updateHabit(id,data) {
     const {error}=await supabase.from('habits').update({
-      frequency:data.frequency||'daily',
+      frequency_type:data.frequency_type||'daily',
+      interval_days:data.interval_days||null,
+      days_of_week:data.days_of_week||null,
+      day_of_month:data.day_of_month||null,
+      target_count:data.target_count||null,
       link_url:normalizeUrl(data.link_url)||null,
     }).eq('id',id)
     if(error){alert(error.message);return}
@@ -413,7 +485,8 @@ function GTDApp({session,onSignOut}) {
     return days
   },[today])
 
-  const habitsDoneToday=habits.filter(h=>habitLogs.some(l=>l.habit_id===h.id&&l.log_date===today)).length
+  const habitsDueToday=habits.filter(h=>isHabitDueToday(h,today,habitLogs))
+  const habitsDoneToday=habitsDueToday.filter(h=>habitLogs.some(l=>l.habit_id===h.id&&l.log_date===today)).length
 
   const navigateTo=(s)=>setScreen(s)
 
@@ -554,23 +627,36 @@ function GTDApp({session,onSignOut}) {
 
           {/* Habits folder */}
           <FolderCard colorClass="folder-habits" icon="🔥" title="Habits"
-            subtitle={`${habitsDoneToday} of ${habits.length} done today`}
+            subtitle={`${habitsDoneToday} of ${habitsDueToday.length} done today`}
             defaultOpen={true}>
-            {habits.map(habit=>{
+            {habitsDueToday.map(habit=>{
               const doneToday=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===today)
+              const isCount=habit.frequency_type==='times_per_week'||habit.frequency_type==='times_per_month'
+              const target=habit.target_count||1
+              const periodCount=isCount?habitPeriodCount(habit,habitLogs,today):0
               return (
                 <div className="habit-row" key={habit.id}>
                   <div className="habit-left" onClick={()=>setHabitDetail(habit)}>
                     <div className="habit-emoji">{habit.emoji||'✅'}</div>
                     <div>
                       <div className="habit-name">{habit.name}</div>
-                      <div className="habit-freq">{habit.frequency==='daily'?'Daily':habit.frequency==='weekly'?'Weekly':'Custom'}</div>
-                      <div className="habit-week-progress">
-                        {last7.map(d=>{
-                          const done=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===d.date)
-                          return <span key={d.date} className={`habit-week-dot${done?' done':''}${d.isToday?' today':''}`}/>
-                        })}
-                      </div>
+                      <div className="habit-freq">{habitFrequencyLabel(habit)}</div>
+                      {isCount?(
+                        <div className="habit-progress-pips">
+                          {Array.from({length:target}).map((_,i)=>(
+                            <span key={i} className={`habit-progress-pip${i<periodCount?' done':''}`}/>
+                          ))}
+                          <span className="habit-progress-text">{periodCount}/{target} {habit.frequency_type==='times_per_week'?'this week':'this month'}</span>
+                        </div>
+                      ):(
+                        <div className="habit-week-progress">
+                          {last7.map(d=>{
+                            const done=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===d.date)
+                            const applicable=isHabitDueOnDate(habit,d.date)
+                            return <span key={d.date} className={`habit-week-dot${done?' done':''}${d.isToday?' today':''}${!applicable?' inactive':''}`}/>
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <button className={`habit-today-check${doneToday?' done':''}`}
@@ -582,6 +668,7 @@ function GTDApp({session,onSignOut}) {
               )
             })}
             {habits.length===0&&<div style={{fontSize:13,color:'rgba(26,46,20,.45)',textAlign:'center',padding:'10px 0'}}>No habits yet. Add one below.</div>}
+            {habits.length>0&&habitsDueToday.length===0&&<div style={{fontSize:13,color:'rgba(26,46,20,.45)',textAlign:'center',padding:'10px 0'}}>Nothing due today. 🎉</div>}
             <button className="habit-add-btn" onClick={()=>setAddHabitOpen(true)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add new habit
@@ -904,35 +991,114 @@ function CaptureModal({onClose,onSubmit}) {
   )
 }
 
+function FrequencyFields({frequencyType,setFrequencyType,intervalDays,setIntervalDays,daysOfWeek,setDaysOfWeek,dayOfMonth,setDayOfMonth,targetCount,setTargetCount}) {
+  const toggleDow=(d)=>{
+    setDaysOfWeek(prev=>prev.includes(d)?prev.filter(x=>x!==d):[...prev,d].sort())
+  }
+  return (
+    <>
+      <Fld label="Frequency">
+        <select value={frequencyType} onChange={e=>setFrequencyType(e.target.value)}>
+          <option value="daily">Every day</option>
+          <option value="every_n_days">Every N days</option>
+          <option value="weekly_days">Specific day(s) of the week</option>
+          <option value="monthly_day">Specific day of the month</option>
+          <option value="times_per_week">X times per week</option>
+          <option value="times_per_month">X times per month</option>
+        </select>
+      </Fld>
+
+      {frequencyType==='every_n_days'&&(
+        <Fld label="Every how many days?">
+          <input type="number" min="2" value={intervalDays} onChange={e=>setIntervalDays(e.target.value)}/>
+        </Fld>
+      )}
+
+      {frequencyType==='weekly_days'&&(
+        <Fld label="Which day(s)?">
+          <div className="freq-days-row">
+            {[1,2,3,4,5,6,0].map(idx=>(
+              <button key={idx} type="button"
+                className={`freq-day-toggle${daysOfWeek.includes(idx)?' active':''}`}
+                onClick={()=>toggleDow(idx)}>{DAYS[idx]}</button>
+            ))}
+          </div>
+        </Fld>
+      )}
+
+      {frequencyType==='monthly_day'&&(
+        <Fld label="Which day of the month?">
+          <input type="number" min="1" max="31" value={dayOfMonth} onChange={e=>setDayOfMonth(e.target.value)}/>
+        </Fld>
+      )}
+
+      {(frequencyType==='times_per_week'||frequencyType==='times_per_month')&&(
+        <Fld label={frequencyType==='times_per_week'?'How many times per week?':'How many times per month?'}>
+          <input type="number" min="1" value={targetCount} onChange={e=>setTargetCount(e.target.value)}/>
+        </Fld>
+      )}
+    </>
+  )
+}
+
 function AddHabitModal({onClose,onSubmit}) {
   const [name,setName]=useState('')
   const [emoji,setEmoji]=useState('✅')
-  const [frequency,setFrequency]=useState('daily')
+  const [frequencyType,setFrequencyType]=useState('daily')
+  const [intervalDays,setIntervalDays]=useState(2)
+  const [daysOfWeek,setDaysOfWeek]=useState([1,2,3,4,5])
+  const [dayOfMonth,setDayOfMonth]=useState(1)
+  const [targetCount,setTargetCount]=useState(3)
   const [linkUrl,setLinkUrl]=useState('')
+
+  function submit() {
+    onSubmit({
+      name:name.trim(),emoji,frequency_type:frequencyType,
+      interval_days:frequencyType==='every_n_days'?Number(intervalDays)||2:null,
+      days_of_week:frequencyType==='weekly_days'?daysOfWeek:null,
+      day_of_month:frequencyType==='monthly_day'?Number(dayOfMonth)||1:null,
+      target_count:(frequencyType==='times_per_week'||frequencyType==='times_per_month')?Number(targetCount)||1:null,
+      link_url:linkUrl,
+    })
+  }
+
   return (
     <Modal title="🔥 New habit" onClose={onClose}>
       <Fld label="Habit name *"><input autoFocus placeholder="e.g. Workout, Read, Meditate..." value={name} onChange={e=>setName(e.target.value)}/></Fld>
       <Fld label="Emoji icon"><input placeholder="✅" value={emoji} onChange={e=>setEmoji(e.target.value)} style={{width:80}}/></Fld>
-      <Fld label="Frequency">
-        <select value={frequency} onChange={e=>setFrequency(e.target.value)}>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-        </select>
-      </Fld>
+      <FrequencyFields frequencyType={frequencyType} setFrequencyType={setFrequencyType}
+        intervalDays={intervalDays} setIntervalDays={setIntervalDays}
+        daysOfWeek={daysOfWeek} setDaysOfWeek={setDaysOfWeek}
+        dayOfMonth={dayOfMonth} setDayOfMonth={setDayOfMonth}
+        targetCount={targetCount} setTargetCount={setTargetCount}/>
       <Fld label="Link"><input placeholder="https://... (e.g. workout plan, playlist)" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/></Fld>
-      <button disabled={!name.trim()} onClick={()=>onSubmit({name:name.trim(),emoji,frequency,link_url:linkUrl})}>Add habit</button>
+      <button disabled={!name.trim()} onClick={submit}>Add habit</button>
     </Modal>
   )
 }
 
 function HabitDetailModal({habit,logs,days,today,onClose,onToggleDay,onUpdate}) {
-  const [frequency,setFrequency]=useState(habit.frequency||'daily')
+  const [frequencyType,setFrequencyType]=useState(habit.frequency_type||'daily')
+  const [intervalDays,setIntervalDays]=useState(habit.interval_days||2)
+  const [daysOfWeek,setDaysOfWeek]=useState(habit.days_of_week||[1,2,3,4,5])
+  const [dayOfMonth,setDayOfMonth]=useState(habit.day_of_month||1)
+  const [targetCount,setTargetCount]=useState(habit.target_count||3)
   const [linkUrl,setLinkUrl]=useState(habit.link_url||'')
   const [saving,setSaving]=useState(false)
 
+  const isCount=frequencyType==='times_per_week'||frequencyType==='times_per_month'
+  const periodCount=isCount?habitPeriodCount({...habit,frequency_type:frequencyType},logs,today):0
+
   async function save() {
     setSaving(true)
-    await onUpdate(habit.id,{frequency,link_url:linkUrl})
+    await onUpdate(habit.id,{
+      frequency_type:frequencyType,
+      interval_days:frequencyType==='every_n_days'?Number(intervalDays)||2:null,
+      days_of_week:frequencyType==='weekly_days'?daysOfWeek:null,
+      day_of_month:frequencyType==='monthly_day'?Number(dayOfMonth)||1:null,
+      target_count:isCount?Number(targetCount)||1:null,
+      link_url:linkUrl,
+    })
     setSaving(false)
   }
 
@@ -941,29 +1107,42 @@ function HabitDetailModal({habit,logs,days,today,onClose,onToggleDay,onUpdate}) 
       {habit.link_url&&(
         <a className="link-button" href={normalizeUrl(habit.link_url)} target="_blank" rel="noreferrer">🔗 Open link</a>
       )}
-      <p className="section-label">This week — tap a day to toggle</p>
-      <div className="habit-week-detail">
-        {days.map(d=>{
-          const done=logs.some(l=>l.habit_id===habit.id&&l.log_date===d.date)
-          const future=d.date>today
-          return (
-            <button key={d.date} disabled={future}
-              className={`habit-day-btn${done?' done':''}${d.isToday?' today':''}${future?' future':''}`}
-              onClick={()=>onToggleDay(habit.id,d.date)}>
-              <span className="habit-day-label">{d.label}</span>
-              <span className="habit-day-circle">{done&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>}</span>
-            </button>
-          )
-        })}
-      </div>
+
+      {isCount?(
+        <div className="habit-progress-pips" style={{marginTop:4}}>
+          {Array.from({length:targetCount}).map((_,i)=>(
+            <span key={i} className={`habit-progress-pip${i<periodCount?' done':''}`}/>
+          ))}
+          <span className="habit-progress-text">{periodCount}/{targetCount} {frequencyType==='times_per_week'?'this week':'this month'}</span>
+        </div>
+      ):(
+        <>
+          <p className="section-label">This week — tap a day to toggle</p>
+          <div className="habit-week-detail">
+            {days.map(d=>{
+              const done=logs.some(l=>l.habit_id===habit.id&&l.log_date===d.date)
+              const future=d.date>today
+              const applicable=isHabitDueOnDate(habit,d.date)
+              const disabled=future||!applicable
+              return (
+                <button key={d.date} disabled={disabled}
+                  className={`habit-day-btn${done?' done':''}${d.isToday?' today':''}${disabled?' future':''}`}
+                  onClick={()=>onToggleDay(habit.id,d.date)}>
+                  <span className="habit-day-label">{d.label}</span>
+                  <span className="habit-day-circle">{done&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>}</span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       <p className="section-label">Edit habit</p>
-      <Fld label="Frequency">
-        <select value={frequency} onChange={e=>setFrequency(e.target.value)}>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-        </select>
-      </Fld>
+      <FrequencyFields frequencyType={frequencyType} setFrequencyType={setFrequencyType}
+        intervalDays={intervalDays} setIntervalDays={setIntervalDays}
+        daysOfWeek={daysOfWeek} setDaysOfWeek={setDaysOfWeek}
+        dayOfMonth={dayOfMonth} setDayOfMonth={setDayOfMonth}
+        targetCount={targetCount} setTargetCount={setTargetCount}/>
       <Fld label="Link"><input placeholder="https://..." value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/></Fld>
       <button disabled={saving} onClick={save}>{saving?'Saving...':'Save changes'}</button>
     </Modal>
@@ -1093,26 +1272,51 @@ function EditItemModal({item,projects,onClose,onSubmit}) {
     scheduled_time:timePart(item.scheduled_at),
   })
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}))
+  const ct=form.case_type
   return (
     <Modal title="✏️ Edit item" onClose={onClose}>
-      <Fld label="Title *"><input value={form.title} onChange={e=>upd('title',e.target.value)}/></Fld>
-      <Fld label="Notes"><textarea value={form.notes} onChange={e=>upd('notes',e.target.value)}/></Fld>
-      <Fld label="Link"><input value={form.link_url} onChange={e=>upd('link_url',e.target.value)}/></Fld>
-      <Fld label="Source"><input value={form.source} onChange={e=>upd('source',e.target.value)}/></Fld>
-      <Fld label="Share (email)"><input value={form.shared_with_emails} onChange={e=>upd('shared_with_emails',e.target.value)}/></Fld>
-      <Fld label="Status"><select value={form.status} onChange={e=>upd('status',e.target.value)}><option value="inbox">Inbox</option><option value="active">Active</option><option value="processed">Processed</option><option value="completed">Completed</option><option value="archived">Archived</option></select></Fld>
-      <Fld label="Type"><select value={form.case_type} onChange={e=>upd('case_type',e.target.value)}><option value="">—</option><option value="action">Action</option><option value="delegated">Delegated</option><option value="scheduled">Scheduled</option><option value="someday">Someday</option><option value="reference">Reference</option><option value="trash">Trash</option></select></Fld>
-      <Fld label="Area"><select value={form.area_type} onChange={e=>upd('area_type',e.target.value)}><option value="">—</option><option value="Work">💼 Work</option><option value="Personal">🏠 Personal</option></select></Fld>
-      {projects.length>0&&<Fld label="Project"><select value={form.project_id} onChange={e=>upd('project_id',e.target.value)}><option value="">None</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></Fld>}
-      <Fld label="Priority"><input value={form.priority} onChange={e=>upd('priority',e.target.value)}/></Fld>
-      <Fld label="Context @"><input value={form.context} onChange={e=>upd('context',e.target.value)}/></Fld>
-      <Fld label="Due date"><input type="date" value={form.due_date} onChange={e=>upd('due_date',e.target.value)}/></Fld>
-      <Fld label="Review date"><input type="date" value={form.review_date} onChange={e=>upd('review_date',e.target.value)}/></Fld>
-      <Fld label="Scheduled date"><input type="date" value={form.scheduled_date} onChange={e=>upd('scheduled_date',e.target.value)}/></Fld>
-      <Fld label="Scheduled time"><input type="time" value={form.scheduled_time} onChange={e=>upd('scheduled_time',e.target.value)}/></Fld>
-      <Fld label="Person responsible"><input value={form.person_responsible} onChange={e=>upd('person_responsible',e.target.value)}/></Fld>
-      <Fld label="Waiting for"><input value={form.waiting_for} onChange={e=>upd('waiting_for',e.target.value)}/></Fld>
-      <Fld label="Communication notes"><textarea value={form.communication_notes} onChange={e=>upd('communication_notes',e.target.value)}/></Fld>
+      <EditSection title="📝 General">
+        <Fld label="Title *"><input value={form.title} onChange={e=>upd('title',e.target.value)}/></Fld>
+        <Fld label="Notes"><textarea value={form.notes} onChange={e=>upd('notes',e.target.value)}/></Fld>
+        <Fld label="Link"><input value={form.link_url} onChange={e=>upd('link_url',e.target.value)}/></Fld>
+        <Fld label="Source"><input value={form.source} onChange={e=>upd('source',e.target.value)}/></Fld>
+        <Fld label="Share (email)"><input value={form.shared_with_emails} onChange={e=>upd('shared_with_emails',e.target.value)}/></Fld>
+        <Fld label="Status"><select value={form.status} onChange={e=>upd('status',e.target.value)}><option value="inbox">Inbox</option><option value="active">Active</option><option value="processed">Processed</option><option value="completed">Completed</option><option value="archived">Archived</option></select></Fld>
+        <Fld label="Type"><select value={form.case_type} onChange={e=>upd('case_type',e.target.value)}><option value="">—</option><option value="action">✅ I do it</option><option value="delegated">👤 Delegate</option><option value="scheduled">🗓 Schedule</option><option value="someday">🌱 Someday</option><option value="reference">📚 Reference</option><option value="trash">🗑 Trash</option></select></Fld>
+        <Fld label="Area"><select value={form.area_type} onChange={e=>upd('area_type',e.target.value)}><option value="">—</option><option value="Work">💼 Work</option><option value="Personal">🏠 Personal</option></select></Fld>
+      </EditSection>
+
+      {ct==='action'&&(
+        <EditSection title="✅ I do it">
+          {projects.length>0&&<Fld label="Project"><select value={form.project_id} onChange={e=>upd('project_id',e.target.value)}><option value="">None</option>{projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></Fld>}
+          <Fld label="Priority"><input value={form.priority} onChange={e=>upd('priority',e.target.value)}/></Fld>
+          <Fld label="Context @"><input value={form.context} onChange={e=>upd('context',e.target.value)}/></Fld>
+          <Fld label="Due date"><input type="date" value={form.due_date} onChange={e=>upd('due_date',e.target.value)}/></Fld>
+        </EditSection>
+      )}
+
+      {ct==='delegated'&&(
+        <EditSection title="👤 Delegate">
+          <Fld label="Person responsible"><input value={form.person_responsible} onChange={e=>upd('person_responsible',e.target.value)}/></Fld>
+          <Fld label="Waiting for"><input value={form.waiting_for} onChange={e=>upd('waiting_for',e.target.value)}/></Fld>
+          <Fld label="Follow-up date"><input type="date" value={form.review_date} onChange={e=>upd('review_date',e.target.value)}/></Fld>
+          <Fld label="Communication notes"><textarea value={form.communication_notes} onChange={e=>upd('communication_notes',e.target.value)}/></Fld>
+        </EditSection>
+      )}
+
+      {ct==='scheduled'&&(
+        <EditSection title="🗓 Schedule">
+          <Fld label="Scheduled date"><input type="date" value={form.scheduled_date} onChange={e=>upd('scheduled_date',e.target.value)}/></Fld>
+          <Fld label="Scheduled time"><input type="time" value={form.scheduled_time} onChange={e=>upd('scheduled_time',e.target.value)}/></Fld>
+        </EditSection>
+      )}
+
+      {ct==='someday'&&(
+        <EditSection title="🌱 Someday">
+          <Fld label="Review date"><input type="date" value={form.review_date} onChange={e=>upd('review_date',e.target.value)}/></Fld>
+        </EditSection>
+      )}
+
       <button disabled={!form.title.trim()} onClick={()=>onSubmit(form)}>Save</button>
     </Modal>
   )
@@ -1215,6 +1419,14 @@ function CardAction({label,onClick,variant}) {
   return <button className={`card-action${variant?` ${variant}`:''}`} onClick={onClick}>{label}</button>
 }
 function Empty({text}) { return <div className="empty">{text}</div> }
+function EditSection({title,children}) {
+  return (
+    <div className="edit-section">
+      <div className="edit-section-title">{title}</div>
+      <div className="edit-section-body">{children}</div>
+    </div>
+  )
+}
 function Fld({label,children}) {
   return (
     <div className="form-group">
