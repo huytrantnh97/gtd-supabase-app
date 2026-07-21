@@ -548,13 +548,16 @@ function GTDApp({session,onSignOut}) {
                 ['someday','🌱','Someday',counts.someday],
                 ['reference','📚','Reference',counts.reference],
                 ['done','🏁','Done',counts.done],
-              ].map(([key,icon,label,val])=>(
+              ].filter(([,,,val])=>val>0).map(([key,icon,label,val])=>(
                 <button key={key} className="summary-tile" onClick={()=>navigateTo(key)}>
                   <div className="summary-tile-val">{val}</div>
                   <div className="summary-tile-lbl">{icon} {label}</div>
                 </button>
               ))}
             </div>
+            {counts.inbox+counts.today+counts.waiting+counts.projects+counts.schedule+counts.someday+counts.reference+counts.done===0&&(
+              <div style={{fontSize:13,color:'rgba(255,255,255,.45)',textAlign:'center',padding:'8px 0'}}>All clear. Nothing to show. 🎉</div>
+            )}
           </FolderCard>
 
           {/* Events folder */}
@@ -628,48 +631,14 @@ function GTDApp({session,onSignOut}) {
           {/* Habits folder */}
           <FolderCard colorClass="folder-habits" icon="🔥" title="Habits"
             subtitle={`${habitsDoneToday} of ${habitsDueToday.length} done today`}
-            defaultOpen={true}>
-            {habitsDueToday.map(habit=>{
-              const doneToday=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===today)
-              const isCount=habit.frequency_type==='times_per_week'||habit.frequency_type==='times_per_month'
-              const target=habit.target_count||1
-              const periodCount=isCount?habitPeriodCount(habit,habitLogs,today):0
-              return (
-                <div className="habit-row" key={habit.id}>
-                  <div className="habit-left" onClick={()=>setHabitDetail(habit)}>
-                    <div className="habit-emoji">{habit.emoji||'✅'}</div>
-                    <div>
-                      <div className="habit-name">{habit.name}</div>
-                      <div className="habit-freq">{habitFrequencyLabel(habit)}</div>
-                      {isCount?(
-                        <div className="habit-progress-pips">
-                          {Array.from({length:target}).map((_,i)=>(
-                            <span key={i} className={`habit-progress-pip${i<periodCount?' done':''}`}/>
-                          ))}
-                          <span className="habit-progress-text">{periodCount}/{target} {habit.frequency_type==='times_per_week'?'this week':'this month'}</span>
-                        </div>
-                      ):(
-                        <div className="habit-week-progress">
-                          {last7.map(d=>{
-                            const done=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===d.date)
-                            const applicable=isHabitDueOnDate(habit,d.date)
-                            return <span key={d.date} className={`habit-week-dot${done?' done':''}${d.isToday?' today':''}${!applicable?' inactive':''}`}/>
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <button className={`habit-today-check${doneToday?' done':''}`}
-                    onClick={e=>{e.stopPropagation();toggleHabitLog(habit.id,today)}}
-                    title="Today" aria-label={`Mark ${habit.name} done today`}>
-                    {doneToday&&<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>}
-                  </button>
-                </div>
-              )
-            })}
+            expandable={false} onClick={()=>navigateTo('habits')}>
+            {habitsDueToday.map(habit=>(
+              <HabitRow key={habit.id} habit={habit} today={today} habitLogs={habitLogs} last7={last7}
+                onOpenDetail={setHabitDetail} onToggleToday={toggleHabitLog}/>
+            ))}
             {habits.length===0&&<div style={{fontSize:13,color:'rgba(26,46,20,.45)',textAlign:'center',padding:'10px 0'}}>No habits yet. Add one below.</div>}
             {habits.length>0&&habitsDueToday.length===0&&<div style={{fontSize:13,color:'rgba(26,46,20,.45)',textAlign:'center',padding:'10px 0'}}>Nothing due today. 🎉</div>}
-            <button className="habit-add-btn" onClick={()=>setAddHabitOpen(true)}>
+            <button className="habit-add-btn" onClick={e=>{e.stopPropagation();setAddHabitOpen(true)}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add new habit
             </button>
@@ -685,8 +654,8 @@ function GTDApp({session,onSignOut}) {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <div className="screen-title-wrap">
-              <h2>{{inbox:'Inbox',today:'Today',waiting:'Waiting',projects:'Projects',schedule:'Schedule',reference:'Reference',someday:'Someday',done:'Done'}[screen]}</h2>
-              <p>{{inbox:`${counts.inbox} items`,today:`${counts.today} tasks`,waiting:`${counts.waiting} items`,projects:`${counts.projects} active`,schedule:`${counts.schedule} scheduled`,reference:`${counts.reference} items`,someday:`${counts.someday} items`,done:`${counts.done} completed`}[screen]}</p>
+              <h2>{{inbox:'Inbox',today:'Today',waiting:'Waiting',projects:'Projects',schedule:'Schedule',reference:'Reference',someday:'Someday',done:'Done',habits:'Habits'}[screen]}</h2>
+              <p>{{inbox:`${counts.inbox} items`,today:`${counts.today} tasks`,waiting:`${counts.waiting} items`,projects:`${counts.projects} active`,schedule:`${counts.schedule} scheduled`,reference:`${counts.reference} items`,someday:`${counts.someday} items`,done:`${counts.done} completed`,habits:`${habits.length} habit${habits.length===1?'':'s'}`}[screen]}</p>
             </div>
           </div>
 
@@ -895,6 +864,23 @@ function GTDApp({session,onSignOut}) {
                 </>}
               </section>
             )}
+
+            {/* ALL HABITS */}
+            {screen==='habits'&&(
+              <section>
+                {habits.length===0?<Empty text="No habits yet. Add one below."/>:
+                  <div className="list-plain">
+                    {habits.map(habit=>(
+                      <div className="habit-row-card" key={habit.id}>
+                        <HabitRow habit={habit} today={today} habitLogs={habitLogs} last7={last7}
+                          onOpenDetail={setHabitDetail} onToggleToday={toggleHabitLog}/>
+                      </div>
+                    ))}
+                  </div>
+                }
+                <button className="secondary small" style={{marginTop:14}} onClick={()=>setAddHabitOpen(true)}>+ Add new habit</button>
+              </section>
+            )}
           </div>
         </div>
       )}
@@ -920,6 +906,51 @@ function GTDApp({session,onSignOut}) {
 }
 
 /* ─── Folder Card Component ──────────────────── */
+function HabitRow({habit,today,habitLogs,last7,onOpenDetail,onToggleToday}) {
+  const doneToday=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===today)
+  const isCount=habit.frequency_type==='times_per_week'||habit.frequency_type==='times_per_month'
+  const target=habit.target_count||1
+  const periodCount=isCount?habitPeriodCount(habit,habitLogs,today):0
+  return (
+    <div className="habit-row">
+      <div className="habit-left" onClick={e=>{e.stopPropagation();onOpenDetail(habit)}}>
+        <div className="habit-emoji">{habit.emoji||'✅'}</div>
+        <div>
+          <div className="habit-name">
+            {habit.name}
+            {habit.link_url&&(
+              <a className="habit-link-icon" href={normalizeUrl(habit.link_url)} target="_blank" rel="noreferrer"
+                onClick={e=>e.stopPropagation()} aria-label={`Open link for ${habit.name}`}>🔗</a>
+            )}
+          </div>
+          <div className="habit-freq">{habitFrequencyLabel(habit)}</div>
+          {isCount?(
+            <div className="habit-progress-pips">
+              {Array.from({length:target}).map((_,i)=>(
+                <span key={i} className={`habit-progress-pip${i<periodCount?' done':''}`}/>
+              ))}
+              <span className="habit-progress-text">{periodCount}/{target} {habit.frequency_type==='times_per_week'?'this week':'this month'}</span>
+            </div>
+          ):(
+            <div className="habit-week-progress">
+              {last7.map(d=>{
+                const done=habitLogs.some(l=>l.habit_id===habit.id&&l.log_date===d.date)
+                const applicable=isHabitDueOnDate(habit,d.date)
+                return <span key={d.date} className={`habit-week-dot${done?' done':''}${d.isToday?' today':''}${!applicable?' inactive':''}`}/>
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+      <button className={`habit-today-check${doneToday?' done':''}`}
+        onClick={e=>{e.stopPropagation();onToggleToday(habit.id,today)}}
+        title="Today" aria-label={`Mark ${habit.name} done today`}>
+        {doneToday&&<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>}
+      </button>
+    </div>
+  )
+}
+
 function FolderCard({colorClass,icon,title,subtitle,defaultOpen=false,expandable=true,onClick,children}) {
   const [open,setOpen]=useState(defaultOpen)
   if(!expandable) {
@@ -992,17 +1023,12 @@ function CaptureModal({onClose,onSubmit}) {
 }
 
 function FrequencyFields({frequencyType,setFrequencyType,intervalDays,setIntervalDays,daysOfWeek,setDaysOfWeek,dayOfMonth,setDayOfMonth,targetCount,setTargetCount}) {
-  const toggleDow=(d)=>{
-    setDaysOfWeek(prev=>prev.includes(d)?prev.filter(x=>x!==d):[...prev,d].sort())
-  }
   return (
     <>
       <Fld label="Frequency">
         <select value={frequencyType} onChange={e=>setFrequencyType(e.target.value)}>
           <option value="daily">Every day</option>
           <option value="every_n_days">Every N days</option>
-          <option value="weekly_days">Specific day(s) of the week</option>
-          <option value="monthly_day">Specific day of the month</option>
           <option value="times_per_week">X times per week</option>
           <option value="times_per_month">X times per month</option>
         </select>
@@ -1011,24 +1037,6 @@ function FrequencyFields({frequencyType,setFrequencyType,intervalDays,setInterva
       {frequencyType==='every_n_days'&&(
         <Fld label="Every how many days?">
           <input type="number" min="2" value={intervalDays} onChange={e=>setIntervalDays(e.target.value)}/>
-        </Fld>
-      )}
-
-      {frequencyType==='weekly_days'&&(
-        <Fld label="Which day(s)?">
-          <div className="freq-days-row">
-            {[1,2,3,4,5,6,0].map(idx=>(
-              <button key={idx} type="button"
-                className={`freq-day-toggle${daysOfWeek.includes(idx)?' active':''}`}
-                onClick={()=>toggleDow(idx)}>{DAYS[idx]}</button>
-            ))}
-          </div>
-        </Fld>
-      )}
-
-      {frequencyType==='monthly_day'&&(
-        <Fld label="Which day of the month?">
-          <input type="number" min="1" max="31" value={dayOfMonth} onChange={e=>setDayOfMonth(e.target.value)}/>
         </Fld>
       )}
 

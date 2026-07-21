@@ -281,7 +281,9 @@ label {
 .habit-row:last-child { border-bottom: 0; }
 .habit-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
 .habit-emoji { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-.habit-name  { font-size: 13px; font-weight: 600; color: var(--f3-ink); }
+.habit-name  { font-size: 13px; font-weight: 600; color: var(--f3-ink); display: flex; align-items: center; gap: 5px; }
+.habit-link-icon { font-size: 11px; opacity: .6; text-decoration: none; }
+.habit-link-icon:hover { opacity: 1; }
 .habit-freq  { font-size: 10.5px; color: rgba(26,46,20,.5); margin-top: 1px; }
 
 .habit-week-progress { display: flex; gap: 4px; margin-top: 5px; }
@@ -386,6 +388,8 @@ label {
 .area-switcher button.active { background: var(--text); color: #fff; }
 
 .list { display: flex; flex-direction: column; gap: 8px; }
+.list-plain { display: flex; flex-direction: column; gap: 8px; }
+.habit-row-card { background: var(--f3-bg); border-radius: var(--radius-l); padding: 2px 14px; }
 
 /* ─── Cards ────────────────────────────────── */
 .card {
