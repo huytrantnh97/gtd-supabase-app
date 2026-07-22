@@ -386,6 +386,7 @@ function GTDApp({session,onSignOut}) {
       days_of_week:data.days_of_week||null,
       day_of_month:data.day_of_month||null,
       target_count:data.target_count||null,
+      duration_minutes:data.duration_minutes||null,
       link_url:normalizeUrl(data.link_url)||null,
     })
     if(error){alert(error.message);return}
@@ -394,11 +395,13 @@ function GTDApp({session,onSignOut}) {
 
   async function updateHabit(id,data) {
     const {error}=await supabase.from('habits').update({
+      name:data.name,emoji:data.emoji||'✅',
       frequency_type:data.frequency_type||'daily',
       interval_days:data.interval_days||null,
       days_of_week:data.days_of_week||null,
       day_of_month:data.day_of_month||null,
       target_count:data.target_count||null,
+      duration_minutes:data.duration_minutes||null,
       link_url:normalizeUrl(data.link_url)||null,
     }).eq('id',id)
     if(error){alert(error.message);return}
@@ -487,6 +490,11 @@ function GTDApp({session,onSignOut}) {
 
   const habitsDueToday=habits.filter(h=>isHabitDueToday(h,today,habitLogs))
   const habitsDoneToday=habitsDueToday.filter(h=>habitLogs.some(l=>l.habit_id===h.id&&l.log_date===today)).length
+  const totalUncheckedDuration=habitsDueToday
+    .filter(h=>!habitLogs.some(l=>l.habit_id===h.id&&l.log_date===today))
+    .reduce((sum,h)=>sum+(h.duration_minutes||0),0)
+  const minutesLeftToday=(()=>{const now=new Date();const end=new Date(now);end.setHours(23,59,59,999);return Math.max(0,Math.round((end-now)/60000))})()
+  const habitTimeShort=totalUncheckedDuration>0&&minutesLeftToday<totalUncheckedDuration
 
   const navigateTo=(s)=>setScreen(s)
 
@@ -630,8 +638,13 @@ function GTDApp({session,onSignOut}) {
 
           {/* Habits folder */}
           <FolderCard colorClass="folder-habits" icon="🔥" title="Habits"
-            subtitle={`${habitsDoneToday} of ${habitsDueToday.length} done today`}
+            subtitle={`${habitsDoneToday} of ${habitsDueToday.length} done today${totalUncheckedDuration>0?` · ${totalUncheckedDuration} min to go`:''}`}
             expandable={false} onClick={()=>navigateTo('habits')}>
+            {habitTimeShort&&(
+              <div className="habit-time-alert">
+                ⏰ Only {minutesLeftToday} min left today — your habits need {totalUncheckedDuration} min. Better start now!
+              </div>
+            )}
             {habitsDueToday.map(habit=>(
               <HabitRow key={habit.id} habit={habit} today={today} habitLogs={habitLogs} last7={last7}
                 onOpenDetail={setHabitDetail} onToggleToday={toggleHabitLog}/>
@@ -923,7 +936,7 @@ function HabitRow({habit,today,habitLogs,last7,onOpenDetail,onToggleToday}) {
                 onClick={e=>e.stopPropagation()} aria-label={`Open link for ${habit.name}`}>🔗</a>
             )}
           </div>
-          <div className="habit-freq">{habitFrequencyLabel(habit)}</div>
+          <div className="habit-freq">{habitFrequencyLabel(habit)}{habit.duration_minutes?` · ${habit.duration_minutes} min`:''}</div>
           {isCount?(
             <div className="habit-progress-pips">
               {Array.from({length:target}).map((_,i)=>(
@@ -1057,6 +1070,7 @@ function AddHabitModal({onClose,onSubmit}) {
   const [daysOfWeek,setDaysOfWeek]=useState([1,2,3,4,5])
   const [dayOfMonth,setDayOfMonth]=useState(1)
   const [targetCount,setTargetCount]=useState(3)
+  const [durationMinutes,setDurationMinutes]=useState(10)
   const [linkUrl,setLinkUrl]=useState('')
 
   function submit() {
@@ -1066,6 +1080,7 @@ function AddHabitModal({onClose,onSubmit}) {
       days_of_week:frequencyType==='weekly_days'?daysOfWeek:null,
       day_of_month:frequencyType==='monthly_day'?Number(dayOfMonth)||1:null,
       target_count:(frequencyType==='times_per_week'||frequencyType==='times_per_month')?Number(targetCount)||1:null,
+      duration_minutes:Number(durationMinutes)||null,
       link_url:linkUrl,
     })
   }
@@ -1079,6 +1094,7 @@ function AddHabitModal({onClose,onSubmit}) {
         daysOfWeek={daysOfWeek} setDaysOfWeek={setDaysOfWeek}
         dayOfMonth={dayOfMonth} setDayOfMonth={setDayOfMonth}
         targetCount={targetCount} setTargetCount={setTargetCount}/>
+      <Fld label="Duration (minutes)"><input type="number" min="1" value={durationMinutes} onChange={e=>setDurationMinutes(e.target.value)} style={{width:100}}/></Fld>
       <Fld label="Link"><input placeholder="https://... (e.g. workout plan, playlist)" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/></Fld>
       <button disabled={!name.trim()} onClick={submit}>Add habit</button>
     </Modal>
@@ -1091,7 +1107,10 @@ function HabitDetailModal({habit,logs,days,today,onClose,onToggleDay,onUpdate}) 
   const [daysOfWeek,setDaysOfWeek]=useState(habit.days_of_week||[1,2,3,4,5])
   const [dayOfMonth,setDayOfMonth]=useState(habit.day_of_month||1)
   const [targetCount,setTargetCount]=useState(habit.target_count||3)
+  const [durationMinutes,setDurationMinutes]=useState(habit.duration_minutes||10)
   const [linkUrl,setLinkUrl]=useState(habit.link_url||'')
+  const [name,setName]=useState(habit.name||'')
+  const [emoji,setEmoji]=useState(habit.emoji||'✅')
   const [saving,setSaving]=useState(false)
 
   const isCount=frequencyType==='times_per_week'||frequencyType==='times_per_month'
@@ -1100,11 +1119,13 @@ function HabitDetailModal({habit,logs,days,today,onClose,onToggleDay,onUpdate}) 
   async function save() {
     setSaving(true)
     await onUpdate(habit.id,{
+      name:name.trim()||habit.name,emoji,
       frequency_type:frequencyType,
       interval_days:frequencyType==='every_n_days'?Number(intervalDays)||2:null,
       days_of_week:frequencyType==='weekly_days'?daysOfWeek:null,
       day_of_month:frequencyType==='monthly_day'?Number(dayOfMonth)||1:null,
       target_count:isCount?Number(targetCount)||1:null,
+      duration_minutes:Number(durationMinutes)||null,
       link_url:linkUrl,
     })
     setSaving(false)
@@ -1146,11 +1167,14 @@ function HabitDetailModal({habit,logs,days,today,onClose,onToggleDay,onUpdate}) 
       )}
 
       <p className="section-label">Edit habit</p>
+      <Fld label="Habit name *"><input value={name} onChange={e=>setName(e.target.value)}/></Fld>
+      <Fld label="Emoji icon"><input value={emoji} onChange={e=>setEmoji(e.target.value)} style={{width:80}}/></Fld>
       <FrequencyFields frequencyType={frequencyType} setFrequencyType={setFrequencyType}
         intervalDays={intervalDays} setIntervalDays={setIntervalDays}
         daysOfWeek={daysOfWeek} setDaysOfWeek={setDaysOfWeek}
         dayOfMonth={dayOfMonth} setDayOfMonth={setDayOfMonth}
         targetCount={targetCount} setTargetCount={setTargetCount}/>
+      <Fld label="Duration (minutes)"><input type="number" min="1" value={durationMinutes} onChange={e=>setDurationMinutes(e.target.value)} style={{width:100}}/></Fld>
       <Fld label="Link"><input placeholder="https://..." value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/></Fld>
       <button disabled={saving} onClick={save}>{saving?'Saving...':'Save changes'}</button>
     </Modal>

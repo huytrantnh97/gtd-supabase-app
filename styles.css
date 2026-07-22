@@ -282,8 +282,21 @@ label {
 .habit-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
 .habit-emoji { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
 .habit-name  { font-size: 13px; font-weight: 600; color: var(--f3-ink); display: flex; align-items: center; gap: 5px; }
-.habit-link-icon { font-size: 11px; opacity: .6; text-decoration: none; }
-.habit-link-icon:hover { opacity: 1; }
+.habit-link-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 7px;
+  background: rgba(255,255,255,.32); font-size: 13px;
+  opacity: .85; text-decoration: none; flex-shrink: 0;
+}
+.habit-link-icon:hover { opacity: 1; background: rgba(255,255,255,.5); }
+.habit-link-icon:active { transform: scale(.94); }
+
+.habit-time-alert {
+  background: rgba(255,255,255,.35); border-radius: var(--radius);
+  padding: 8px 10px; margin-bottom: 8px;
+  font-size: 12px; font-weight: 600; color: var(--f3-ink);
+  line-height: 1.4;
+}
 .habit-freq  { font-size: 10.5px; color: rgba(26,46,20,.5); margin-top: 1px; }
 
 .habit-week-progress { display: flex; gap: 4px; margin-top: 5px; }
