@@ -47,11 +47,16 @@ function localISODate(d=new Date()) {
 }
 function todayISO()  { return localISODate() }
 function nowISO()    { return new Date().toISOString() }
-function toScheduledAt(d,t) { if(!d) return null; return t?`${d}T${t}:00`:`${d}T00:00:00` }
-function datePart(v) { return v?v.slice(0,10):'' }
-function timePart(v) { return v&&v.includes('T')?v.slice(11,16):'' }
-function isTodayOrEarlier(v) { return v?v.slice(0,10)<=todayISO():false }
-function formatDateTime(v)   { return v?v.replace('T',' ').slice(0,16):'' }
+function toScheduledAt(d,t) { if(!d) return null; return t?`${d}T${t}:00+07:00`:`${d}T00:00:00+07:00` }
+function toICT(isoString) {
+  // Shift a UTC instant to Vietnam wall-clock (ICT = UTC+7, no DST) for display/editing
+  if(!isoString)return null
+  return new Date(new Date(isoString).getTime()+7*60*60*1000)
+}
+function datePart(v) { const d=toICT(v); return d?d.toISOString().slice(0,10):'' }
+function timePart(v) { const d=toICT(v); return d?d.toISOString().slice(11,16):'' }
+function isTodayOrEarlier(v) { const d=toICT(v); return d?d.toISOString().slice(0,10)<=todayISO():false }
+function formatDateTime(v)   { const d=toICT(v); return d?d.toISOString().slice(0,16).replace('T',' '):'' }
 function normalizeUrl(url) {
   const c=(url||'').trim(); if(!c) return ''
   return c.startsWith('http://')||c.startsWith('https://')?c:`https://${c}`
