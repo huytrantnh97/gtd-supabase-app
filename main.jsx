@@ -478,6 +478,8 @@ function GTDApp({session,onSignOut}) {
     if(overdue.length>0)return overdue.sort((a,b)=>a.due_date.localeCompare(b.due_date))[0]
     const dueToday=active.filter(i=>i.due_date===today)
     if(dueToday.length>0)return dueToday[0]
+    const scheduledTodayOrBefore=active.filter(i=>i.case_type==='scheduled')
+    if(scheduledTodayOrBefore.length>0)return scheduledTodayOrBefore.sort((a,b)=>(a.scheduled_at||'').localeCompare(b.scheduled_at||''))[0]
     return active[0]||null
   },[items,today])
 
