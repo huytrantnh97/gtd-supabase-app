@@ -392,6 +392,7 @@ function GTDApp({session,onSignOut}) {
       day_of_month:data.day_of_month||null,
       target_count:data.target_count||null,
       duration_minutes:data.duration_minutes||null,
+      suggested_time:data.suggested_time||null,
       link_url:normalizeUrl(data.link_url)||null,
     })
     if(error){alert(error.message);return}
@@ -407,6 +408,7 @@ function GTDApp({session,onSignOut}) {
       day_of_month:data.day_of_month||null,
       target_count:data.target_count||null,
       duration_minutes:data.duration_minutes||null,
+      suggested_time:data.suggested_time||null,
       link_url:normalizeUrl(data.link_url)||null,
     }).eq('id',id)
     if(error){alert(error.message);return}
@@ -943,7 +945,7 @@ function HabitRow({habit,today,habitLogs,last7,onOpenDetail,onToggleToday}) {
                 onClick={e=>e.stopPropagation()} aria-label={`Open link for ${habit.name}`}>🔗</a>
             )}
           </div>
-          <div className="habit-freq">{habitFrequencyLabel(habit)}{habit.duration_minutes?` · ${habit.duration_minutes} min`:''}</div>
+          <div className="habit-freq">{habitFrequencyLabel(habit)}{habit.duration_minutes?` · ${habit.duration_minutes} min`:''}{habit.suggested_time?` · ⏰ ${habit.suggested_time}`:''}</div>
           {isCount?(
             <div className="habit-progress-pips">
               {Array.from({length:target}).map((_,i)=>(
@@ -1078,6 +1080,7 @@ function AddHabitModal({onClose,onSubmit}) {
   const [dayOfMonth,setDayOfMonth]=useState(1)
   const [targetCount,setTargetCount]=useState(3)
   const [durationMinutes,setDurationMinutes]=useState(10)
+  const [suggestedTime,setSuggestedTime]=useState('')
   const [linkUrl,setLinkUrl]=useState('')
 
   function submit() {
@@ -1088,6 +1091,7 @@ function AddHabitModal({onClose,onSubmit}) {
       day_of_month:frequencyType==='monthly_day'?Number(dayOfMonth)||1:null,
       target_count:(frequencyType==='times_per_week'||frequencyType==='times_per_month')?Number(targetCount)||1:null,
       duration_minutes:Number(durationMinutes)||null,
+      suggested_time:suggestedTime||null,
       link_url:linkUrl,
     })
   }
@@ -1102,6 +1106,7 @@ function AddHabitModal({onClose,onSubmit}) {
         dayOfMonth={dayOfMonth} setDayOfMonth={setDayOfMonth}
         targetCount={targetCount} setTargetCount={setTargetCount}/>
       <Fld label="Duration (minutes)"><input type="number" min="1" value={durationMinutes} onChange={e=>setDurationMinutes(e.target.value)} style={{width:100}}/></Fld>
+      <Fld label="Suggested time (optional)"><input type="time" value={suggestedTime} onChange={e=>setSuggestedTime(e.target.value)} style={{width:140}}/></Fld>
       <Fld label="Link"><input placeholder="https://... (e.g. workout plan, playlist)" value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/></Fld>
       <button disabled={!name.trim()} onClick={submit}>Add habit</button>
     </Modal>
@@ -1115,6 +1120,7 @@ function HabitDetailModal({habit,logs,days,today,onClose,onToggleDay,onUpdate}) 
   const [dayOfMonth,setDayOfMonth]=useState(habit.day_of_month||1)
   const [targetCount,setTargetCount]=useState(habit.target_count||3)
   const [durationMinutes,setDurationMinutes]=useState(habit.duration_minutes||10)
+  const [suggestedTime,setSuggestedTime]=useState(habit.suggested_time||'')
   const [linkUrl,setLinkUrl]=useState(habit.link_url||'')
   const [name,setName]=useState(habit.name||'')
   const [emoji,setEmoji]=useState(habit.emoji||'✅')
@@ -1133,6 +1139,7 @@ function HabitDetailModal({habit,logs,days,today,onClose,onToggleDay,onUpdate}) 
       day_of_month:frequencyType==='monthly_day'?Number(dayOfMonth)||1:null,
       target_count:isCount?Number(targetCount)||1:null,
       duration_minutes:Number(durationMinutes)||null,
+      suggested_time:suggestedTime||null,
       link_url:linkUrl,
     })
     setSaving(false)
@@ -1182,6 +1189,7 @@ function HabitDetailModal({habit,logs,days,today,onClose,onToggleDay,onUpdate}) 
         dayOfMonth={dayOfMonth} setDayOfMonth={setDayOfMonth}
         targetCount={targetCount} setTargetCount={setTargetCount}/>
       <Fld label="Duration (minutes)"><input type="number" min="1" value={durationMinutes} onChange={e=>setDurationMinutes(e.target.value)} style={{width:100}}/></Fld>
+      <Fld label="Suggested time (optional)"><input type="time" value={suggestedTime} onChange={e=>setSuggestedTime(e.target.value)} style={{width:140}}/></Fld>
       <Fld label="Link"><input placeholder="https://..." value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}/></Fld>
       <button disabled={saving} onClick={save}>{saving?'Saving...':'Save changes'}</button>
     </Modal>
